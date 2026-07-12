@@ -2,10 +2,13 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { api } from "@/lib/api/client";
+import { logoutParent } from "@/lib/api/auth";
 
 export default function ParametresProfilPage() {
+  const router = useRouter();
   const [prenom, setPrenom] = useState("");
   const [nom, setNom] = useState("");
   const [telephone, setTelephone] = useState("");
@@ -37,6 +40,11 @@ export default function ParametresProfilPage() {
     } finally {
       setEnregistrement(false);
     }
+  };
+
+  const handleLogout = async () => {
+    logoutParent();
+    router.push("/parent/login");
   };
 
   return (
@@ -91,6 +99,14 @@ export default function ParametresProfilPage() {
             className="w-full rounded-full bg-teal-700 px-6 py-3 font-semibold text-white transition hover:bg-teal-800 disabled:opacity-60"
           >
             {enregistrement ? "Enregistrement…" : "Enregistrer"}
+          </button>
+
+          <button
+            type="button"
+            onClick={handleLogout}
+            className="w-full rounded-full bg-red-600 px-6 py-3 font-semibold text-white transition hover:bg-red-700"
+          >
+            Se déconnecter
           </button>
         </form>
       )}
