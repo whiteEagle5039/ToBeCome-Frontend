@@ -1,0 +1,115 @@
+/**
+ * Thème "Espace Collège" — To Be.Come
+ * -------------------------------------------------
+ * Toutes les variables sont scopées à la classe .college-theme
+ * (posée dans app/college/layout.tsx), donc ça ne touche jamais
+ * le thème du reste de l'application.
+ *
+ * Palette basée sur les maquettes fournies :
+ * - Teal profond  : actions principales, textes forts
+ * - Jaune énergie  : progression, badges, accents ludiques
+ * - Crème/blanc cassé : fond, respiration
+ */
+
+.college-theme {
+  /* Couleurs de marque */
+  --college-teal-900: #0b4a44;
+  --college-teal-700: #0f766e; /* teal principal (boutons, liens actifs) */
+  --college-teal-500: #14958a;
+  --college-teal-100: #d9f0ec;
+
+  --college-yellow-600: #e6b800;
+  --college-yellow-500: #ffcb05; /* jaune énergie (XP, badges, highlights) */
+  --college-yellow-100: #fff5cc;
+
+  --college-red-500: #ef4444;    /* progression faible (0–33%) */
+  --college-orange-500: #f59e0b; /* progression moyenne (34–66%) */
+  --college-green-600: #0f766e;  /* progression forte (67–100%) — même teal */
+
+  /* Neutres */
+  --college-bg: #fafaf7;
+  --college-surface: #ffffff;
+  --college-ink-900: #1c2321;
+  --college-ink-600: #5b6764;
+  --college-ink-300: #b9c2bf;
+  --college-border: #e7e4dc;
+
+  /* Rayons & ombres (look "carte de jeu", coins arrondis, ombres douces) */
+  --college-radius-sm: 12px;
+  --college-radius-md: 20px;
+  --college-radius-lg: 28px;
+  --college-shadow-card: 0 4px 20px rgba(15, 118, 110, 0.08);
+  --college-shadow-pop: 0 8px 30px rgba(15, 118, 110, 0.16);
+
+  /* Typo */
+  --college-font-display: "Baloo 2", "Poppins", system-ui, sans-serif; /* rond, ludique, pour titres */
+  --college-font-body: "Poppins", "Inter", system-ui, sans-serif;
+
+  background: var(--college-bg);
+  color: var(--college-ink-900);
+  font-family: var(--college-font-body);
+  min-height: 100dvh;
+}
+
+.college-theme[data-theme="dark"] {
+  --college-bg: #0d1a18;
+  --college-surface: #142825;
+  --college-ink-900: #f2f6f5;
+  --college-ink-600: #a9b6b3;
+  --college-border: #1f3a36;
+  --college-shadow-card: 0 4px 20px rgba(0, 0, 0, 0.35);
+}
+
+/* Titres avec la police display */
+.college-theme h1,
+.college-theme h2,
+.college-theme h3,
+.college-theme .college-title {
+  font-family: var(--college-font-display);
+  letter-spacing: -0.01em;
+}
+
+/* Carte générique réutilisée partout (mission status, discovery, métier, badge...) */
+.college-card {
+  background: var(--college-surface);
+  border: 1px solid var(--college-border);
+  border-radius: var(--college-radius-md);
+  box-shadow: var(--college-shadow-card);
+}
+
+/* Bouton principal (teal) */
+.college-btn-primary {
+  background: var(--college-teal-700);
+  color: white;
+  border-radius: 999px;
+  font-weight: 600;
+  transition: transform 0.15s ease, background 0.15s ease;
+}
+.college-btn-primary:hover {
+  background: var(--college-teal-900);
+  transform: translateY(-1px);
+}
+
+/* Bouton accent (jaune) — pour les CTA "ludiques" (Génial!, Suivant...) */
+.college-btn-accent {
+  background: var(--college-yellow-500);
+  color: var(--college-ink-900);
+  border-radius: 999px;
+  font-weight: 700;
+}
+.college-btn-accent:hover {
+  background: var(--college-yellow-600);
+}
+
+/* Barre de progression avec couleur dynamique selon % (voir utils/progress.ts) */
+.college-progress-track {
+  background: var(--college-border);
+  border-radius: 999px;
+  overflow: hidden;
+  height: 10px;
+}
+.college-progress-fill {
+  height: 100%;
+  border-radius: 999px;
+  transition: width 0.4s ease;
+}

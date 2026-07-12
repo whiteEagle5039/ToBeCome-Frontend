@@ -1,0 +1,67 @@
+/* ===== Ajouts pour l'espace Parent (à coller à la fin de app/globals.css) ===== */
+
+:root {
+  --color-teal-950: #0a2e2b;
+  --color-teal-900: #0d3b37;
+  --color-teal-800: #114b45;
+  --color-teal-700: #0f766e;
+  --color-teal-600: #1b7a70;
+  --color-teal-500: #229487;
+  --color-teal-100: #e2efec;
+  --color-teal-50: #f2f8f6;
+
+  --color-yellow-500: #ffcb05;
+  --color-yellow-400: #f5c928;
+  --color-yellow-100: #fdf1cc;
+
+  --color-ink: #14201e;
+  --color-slate: #5b6b68;
+  --color-cream: #faf8f3;
+  --color-line: #e2e2da;
+
+  /* Réutilise la police Poppins déjà chargée dans app/layout.tsx (variable --font-poppins) */
+  --font-display: var(--font-poppins), ui-sans-serif, system-ui, sans-serif;
+}
+
+@theme inline {
+  --color-teal-950: var(--color-teal-950);
+  --color-teal-900: var(--color-teal-900);
+  --color-teal-800: var(--color-teal-800);
+  --color-teal-700: var(--color-teal-700);
+  --color-teal-600: var(--color-teal-600);
+  --color-teal-500: var(--color-teal-500);
+  --color-teal-100: var(--color-teal-100);
+  --color-teal-50: var(--color-teal-50);
+  --color-yellow-500: var(--color-yellow-500);
+  --color-yellow-400: var(--color-yellow-400);
+  --color-yellow-100: var(--color-yellow-100);
+  --color-ink: var(--color-ink);
+  --color-slate: var(--color-slate);
+  --color-cream: var(--color-cream);
+  --color-line: var(--color-line);
+  --font-display: var(--font-display);
+}
+
+.font-display {
+  font-family: var(--font-display);
+}
+
+.focus-ring {
+  outline: none;
+}
+.focus-ring:focus-visible {
+  outline: 2px solid var(--color-yellow-500);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+.scrollbar-none {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+
+.scrollbar-none::-webkit-scrollbar { display: none; }
+.scrollbar-none { scrollbar-width: none; }

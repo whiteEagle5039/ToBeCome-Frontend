@@ -1,0 +1,22 @@
+{
+  "name": "To Be.Come — Espace Collège",
+  "short_name": "To Be.Come",
+  "description": "Explore. Choisis. Deviens.",
+  "start_url": "/college/accueil",
+  "scope": "/college",
+  "display": "standalone",
+  "background_color": "#fafaf7",
+  "theme_color": "#0f766e",
+  "icons": [
+    {
+      "src": "/apple-icon.png",
+      "sizes": "180x180",
+      "type": "image/png"
+    },
+    {
+      "src": "/icon-light-32x322.png",
+      "sizes": "32x32",
+      "type": "image/png"
+    }
+  ]
+}

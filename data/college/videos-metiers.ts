@@ -1,0 +1,49 @@
+/**
+ * Vidéos de présentation des métiers (Supabase Storage, URLs signées).
+ * Clé = slug du métier (voir data/college/metiers.ts).
+ * Utilisé par les fiches Explorer, la page métier des Quêtes et le seed
+ * (Metier.videoUrl en base).
+ */
+export const VIDEOS_METIERS: Record<string, string> = {
+  "business-developer":
+    "https://jxvdljnktsvgbgzhqoka.supabase.co/storage/v1/object/sign/video/Business%20Developper.mp4?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV8xNmIyNWE2OS0xNDIxLTQ5ZWUtYjgwZi1jYTVmZWZiZDQxNzEiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJ2aWRlby9CdXNpbmVzcyBEZXZlbG9wcGVyLm1wNCIsInNjb3BlIjoiZG93bmxvYWQiLCJpYXQiOjE3ODMzNDYwNDYsImV4cCI6MTgxNDg4MjA0Nn0.3a1pFbMSwqE-9fBMHu_VILQecCs9AejfvQ_13e8W15g",
+  "community-manager":
+    "https://jxvdljnktsvgbgzhqoka.supabase.co/storage/v1/object/sign/video/Community%20manager.mp4?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV8xNmIyNWE2OS0xNDIxLTQ5ZWUtYjgwZi1jYTVmZWZiZDQxNzEiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJ2aWRlby9Db21tdW5pdHkgbWFuYWdlci5tcDQiLCJzY29wZSI6ImRvd25sb2FkIiwiaWF0IjoxNzgzMzQ2MDc0LCJleHAiOjE4MTQ4ODIwNzR9.Eo-bpAKfHQEFvU6zpoyZrzfJT9PuK37MulmTCaZQhgU",
+  "content-creator":
+    "https://jxvdljnktsvgbgzhqoka.supabase.co/storage/v1/object/sign/video/Content%20creator.mp4?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV8xNmIyNWE2OS0xNDIxLTQ5ZWUtYjgwZi1jYTVmZWZiZDQxNzEiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJ2aWRlby9Db250ZW50IGNyZWF0b3IubXA0Iiwic2NvcGUiOiJkb3dubG9hZCIsImlhdCI6MTc4MzM0NjE0MSwiZXhwIjoxODE0ODgyMTQxfQ.e_IT7JNUL5SsSFXlo-2rZKvaBgebWA5x5J0hgPVqIlw",
+  cybersecurite:
+    "https://jxvdljnktsvgbgzhqoka.supabase.co/storage/v1/object/sign/video/Cybersecurite.mp4?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV8xNmIyNWE2OS0xNDIxLTQ5ZWUtYjgwZi1jYTVmZWZiZDQxNzEiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJ2aWRlby9DeWJlcnNlY3VyaXRlLm1wNCIsInNjb3BlIjoiZG93bmxvYWQiLCJpYXQiOjE3ODMzNDYxNjgsImV4cCI6MTgxNDg4MjE2OH0.jlD7KmPtIdOHfAsdFe4l6eSEJLTP8FJxUsJckgpPI5s",
+  "data-scientist":
+    "https://jxvdljnktsvgbgzhqoka.supabase.co/storage/v1/object/sign/video/Data%20Scientist.mp4?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV8xNmIyNWE2OS0xNDIxLTQ5ZWUtYjgwZi1jYTVmZWZiZDQxNzEiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJ2aWRlby9EYXRhIFNjaWVudGlzdC5tcDQiLCJzY29wZSI6ImRvd25sb2FkIiwiaWF0IjoxNzgzMzQ2MTkyLCJleHAiOjE4MTQ4ODIxOTJ9.8Fv6h09q3dv6afqdDG8B4b9-jrfrUdND_VAAKMq6JIQ",
+  devops:
+    "https://jxvdljnktsvgbgzhqoka.supabase.co/storage/v1/object/sign/video/Dev%20ops.mp4?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV8xNmIyNWE2OS0xNDIxLTQ5ZWUtYjgwZi1jYTVmZWZiZDQxNzEiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJ2aWRlby9EZXYgb3BzLm1wNCIsInNjb3BlIjoiZG93bmxvYWQiLCJpYXQiOjE3ODMzNDYyMjIsImV4cCI6MTgxNDg4MjIyMn0.M_6J-v2A0DQ8L3yWZZr_MFjNRN9GSphy00Til64SSzU",
+  "email-marketeur":
+    "https://jxvdljnktsvgbgzhqoka.supabase.co/storage/v1/object/sign/video/Email%20marketeur.mp4?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV8xNmIyNWE2OS0xNDIxLTQ5ZWUtYjgwZi1jYTVmZWZiZDQxNzEiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJ2aWRlby9FbWFpbCBtYXJrZXRldXIubXA0Iiwic2NvcGUiOiJkb3dubG9hZCIsImlhdCI6MTc4MzM0NjI2MywiZXhwIjoxODE0ODgyMjYzfQ.V9kimgcAcWPn2ExlbNaIGDK6K4VYM8oUqpR4PgsMo58",
+  "entrepreneur-digital":
+    "https://jxvdljnktsvgbgzhqoka.supabase.co/storage/v1/object/sign/video/Entrepreneur%20Digital.mp4?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV8xNmIyNWE2OS0xNDIxLTQ5ZWUtYjgwZi1jYTVmZWZiZDQxNzEiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJ2aWRlby9FbnRyZXByZW5ldXIgRGlnaXRhbC5tcDQiLCJzY29wZSI6ImRvd25sb2FkIiwiaWF0IjoxNzgzMzQ2Mjg1LCJleHAiOjE4MTQ4ODIyODV9.cMuRE7sURx9jnSQ3APXAvf31VJj4sNbhKrN6sZgR0qc",
+  "expert-ia":
+    "https://jxvdljnktsvgbgzhqoka.supabase.co/storage/v1/object/sign/video/Expert%20IA.mp4?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV8xNmIyNWE2OS0xNDIxLTQ5ZWUtYjgwZi1jYTVmZWZiZDQxNzEiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJ2aWRlby9FeHBlcnQgSUEubXA0Iiwic2NvcGUiOiJkb3dubG9hZCIsImlhdCI6MTc4MzM0NjMxMSwiZXhwIjoxODE0ODgyMzExfQ.rUgf1KUGe-1-GYCoFGnrktdEGFNnlJa20YRc6icdSOE",
+  "graphiste-digital":
+    "https://jxvdljnktsvgbgzhqoka.supabase.co/storage/v1/object/sign/video/Graphiste%20digital.mp4?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV8xNmIyNWE2OS0xNDIxLTQ5ZWUtYjgwZi1jYTVmZWZiZDQxNzEiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJ2aWRlby9HcmFwaGlzdGUgZGlnaXRhbC5tcDQiLCJzY29wZSI6ImRvd25sb2FkIiwiaWF0IjoxNzgzMzQ2MzI5LCJleHAiOjE4MTQ4ODIzMjl9.gaSKXgSKEeNET18O_WpkTyIKQr60UT-fC_yqc_k5IMQ",
+  "growth-hacker":
+    "https://jxvdljnktsvgbgzhqoka.supabase.co/storage/v1/object/sign/video/Growth%20Hacker.mp4?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV8xNmIyNWE2OS0xNDIxLTQ5ZWUtYjgwZi1jYTVmZWZiZDQxNzEiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJ2aWRlby9Hcm93dGggSGFja2VyLm1wNCIsInNjb3BlIjoiZG93bmxvYWQiLCJpYXQiOjE3ODMzNDYzNTQsImV4cCI6MTgxNDg4MjM1NH0.ikK0Lp7aL5BQaCzcQFKW7Z47HnuTBTjuLwYWqN7MzrY",
+  "product-manager":
+    "https://jxvdljnktsvgbgzhqoka.supabase.co/storage/v1/object/sign/video/Product%20manager.mp4?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV8xNmIyNWE2OS0xNDIxLTQ5ZWUtYjgwZi1jYTVmZWZiZDQxNzEiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJ2aWRlby9Qcm9kdWN0IG1hbmFnZXIubXA0Iiwic2NvcGUiOiJkb3dubG9hZCIsImlhdCI6MTc4MzM0NjM4MiwiZXhwIjoxODE0ODgyMzgyfQ.Ddi4jWbfH0f9u-r41-07wIVVd_hQzOh1ZQiodx9Fo0Y",
+  "prompt-engineer":
+    "https://jxvdljnktsvgbgzhqoka.supabase.co/storage/v1/object/sign/video/Prompt%20engineer.mp4?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV8xNmIyNWE2OS0xNDIxLTQ5ZWUtYjgwZi1jYTVmZWZiZDQxNzEiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJ2aWRlby9Qcm9tcHQgZW5naW5lZXIubXA0Iiwic2NvcGUiOiJkb3dubG9hZCIsImlhdCI6MTc4MzM0NjQwMiwiZXhwIjoxODE0ODgyNDAyfQ.E6s2SUhiF_MOIlmaNwOofvY1k3cAZ7map7aewPb_gw0",
+  "ui-designer":
+    "https://jxvdljnktsvgbgzhqoka.supabase.co/storage/v1/object/sign/video/UI%20Designer.mp4?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV8xNmIyNWE2OS0xNDIxLTQ5ZWUtYjgwZi1jYTVmZWZiZDQxNzEiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJ2aWRlby9VSSBEZXNpZ25lci5tcDQiLCJzY29wZSI6ImRvd25sb2FkIiwiaWF0IjoxNzgzMzQ2NDE5LCJleHAiOjE4MTQ4ODI0MTl9.eQo9xaRM4g_89oGpCYsql1GBks3KXXrUxfBni-KAZJA",
+  "ux-designer":
+    "https://jxvdljnktsvgbgzhqoka.supabase.co/storage/v1/object/sign/video/UX%20Designer.mp4?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV8xNmIyNWE2OS0xNDIxLTQ5ZWUtYjgwZi1jYTVmZWZiZDQxNzEiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJ2aWRlby9VWCBEZXNpZ25lci5tcDQiLCJzY29wZSI6ImRvd25sb2FkIiwiaWF0IjoxNzgzMzQ2NDgzLCJleHAiOjE4MTQ4ODI0ODN9.6Li20JWXO7SqkvR5JdpV3Zqsn3Oh0qpMy2Jz0U6u3H4",
+  "chef-de-projet-digital":
+    "https://jxvdljnktsvgbgzhqoka.supabase.co/storage/v1/object/sign/video/Chef%20de%20projet%20SI.mp4?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV8xNmIyNWE2OS0xNDIxLTQ5ZWUtYjgwZi1jYTVmZWZiZDQxNzEiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJ2aWRlby9DaGVmIGRlIHByb2pldCBTSS5tcDQiLCJzY29wZSI6ImRvd25sb2FkIiwiaWF0IjoxNzgzMzQ1NTEyLCJleHAiOjE4MTQ4ODE1MTJ9.qcwvUDi48OATKuPMAAIk82F4xbKK0WnxUStD-5RhyC8",
+  "developpeur-web": "", // pas encore de vidéo — laissé vide volontairement
+};
+
+/** Vidéos supplémentaires sans fiche métier associée (ex : Consultant IT). */
+export const VIDEOS_AUTRES: { titre: string; url: string }[] = [
+  {
+    titre: "Consultant IT",
+    url: "https://jxvdljnktsvgbgzhqoka.supabase.co/storage/v1/object/sign/video/Consultant%20IT.mp4?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV8xNmIyNWE2OS0xNDIxLTQ5ZWUtYjgwZi1jYTVmZWZiZDQxNzEiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJ2aWRlby9Db25zdWx0YW50IElULm1wNCIsInNjb3BlIjoiZG93bmxvYWQiLCJpYXQiOjE3ODMzNDYxMDIsImV4cCI6MTgxNDg4MjEwMn0.s0a4Q3eysGgV7vBVQixvyDFHnXsSUiM9Gje4_ZWw7y8",
+  },
+];

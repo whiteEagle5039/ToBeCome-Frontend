@@ -1,0 +1,36 @@
+[
+  {
+    "id": "1aed184f-ecea-4974-9f65-1ae4229a8630",
+    "nomEtablissement": "DQGI",
+    "ville": "Cotonou",
+    "email": "annaaqnm@gmail.com",
+    "status": "ACTIVE",
+    "createdAt": "2026-07-03T21:50:11.168Z",
+    "processedAt": "2026-07-04T02:23:27.486Z"
+  },
+  {
+    "id": "9f54537e-9794-41a6-ae85-600e08237fb0",
+    "nomEtablissement": "DQGi",
+    "ville": "COTONOU",
+    "email": "annaaqnm@gmail.com",
+    "status": "ACTIVE",
+    "createdAt": "2026-07-03T22:03:51.899Z",
+    "processedAt": "2026-07-04T02:23:32.691Z"
+  },
+  {
+    "id": "2ee06d95-ff8f-4c4d-b18c-cf439c5e8fa1",
+    "nomEtablissement": "DDQGi",
+    "ville": "COTONOU",
+    "email": "annaaqnm@gmail.com",
+    "status": "PENDING",
+    "createdAt": "2026-07-04T02:46:07.537Z"
+  },
+  {
+    "id": "10acfce6-6e20-4107-a129-7760b4a4ed8c",
+    "nomEtablissement": "GIOVANNA NAOMI BOBE TADAGBE QUENUM",
+    "ville": "COTONOU",
+    "email": "annaaqnm@gmail.com",
+    "status": "PENDING",
+    "createdAt": "2026-07-04T02:46:34.947Z"
+  }
+]
