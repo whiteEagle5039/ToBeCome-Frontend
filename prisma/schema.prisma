@@ -1,0 +1,1216 @@
+// ═══════════════════════════════════════════════════
+// PRISMA SCHEMA — TO BE.COME
+// (fusion : base + quêtes collège + communautés + OTP)
+// ═══════════════════════════════════════════════════
+
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "debian-openssl-3.0.x"]
+}
+
+// Client généré aussi pour l'app Next.js (racine du projet),
+// qui accède à la même base pour l'espace collège.
+generator clientNext {
+  provider = "prisma-client-js"
+  output   = "../../node_modules/.prisma/client"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─────────────────────────────────────────
+// ENUM
+// ─────────────────────────────────────────
+
+enum UserRole {
+  ELEVE_COLLEGE
+  ELEVE_LYCEE
+  PARENT
+  ETABLISSEMENT
+  ADMIN
+}
+
+enum EtablissementStatus {
+  PENDING
+  ACTIVE
+  SUSPENDED
+  REJECTED
+}
+
+enum SubscriptionPlan {
+  ESSENTIEL
+  STANDARD
+  PREMIUM
+}
+
+enum NiveauCollege {
+  SIXIEME
+  CINQUIEME
+  QUATRIEME
+  TROISIEME
+}
+
+enum NiveauLycee {
+  SECONDE
+  PREMIERE
+  TERMINALE
+}
+
+enum MissionStep {
+  QUIZ
+  MISE_EN_SITUATION
+  DEFI_RAPIDE
+  PROJET_FINAL
+}
+
+enum NotificationChannel {
+  EMAIL
+  SMS
+  WHATSAPP
+  PUSH
+}
+
+enum NotificationFrequency {
+  IMMEDIATE
+  DAILY
+  WEEKLY
+}
+
+enum MatriculeStatus {
+  LIBRE
+  UTILISE
+}
+
+// ─────────────────────────────────────────
+// USER — base commune tous les rôles
+// ─────────────────────────────────────────
+// La gamification (XP, niveau, série) vit sur EleveProfile, pas ici :
+// seuls les élèves jouent, et EleveProfile.xpTotal / streakJours sont la
+// source unique de vérité (voir plus bas).
+
+model User {
+  id        String   @id @default(cuid())
+  email     String?  @unique
+  phone     String?
+  password  String
+  role      UserRole
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations selon rôle
+  eleveProfile         EleveProfile?
+  parentProfile        ParentProfile?
+  etablissementProfile EtablissementProfile?
+  adminProfile         AdminProfile?
+
+  sessions            Session[]
+  passwordResetTokens PasswordResetToken[]
+  otpCodes            OtpCode[]
+
+  @@map("users")
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+model PasswordResetToken {
+  id        String   @id @default(cuid())
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+  used      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("password_reset_tokens")
+}
+
+// ─────────────────────────────────────────
+// AUTH — CODE OTP (vérification parentale + réinitialisation)
+// ─────────────────────────────────────────
+
+enum OtpType {
+  VERIFICATION_PARENT
+  REINITIALISATION_MDP
+}
+
+model OtpCode {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  code      String // code à 6 chiffres
+  type      OtpType
+  expiresAt DateTime
+  used      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([userId, type])
+  @@map("otp_codes")
+}
+
+// ─────────────────────────────────────────
+// ETABLISSEMENT
+// ─────────────────────────────────────────
+
+model EtablissementProfile {
+  id           String              @id @default(cuid())
+  userId       String              @unique
+  nom          String
+  type         String // collège, lycée, complexe scolaire...
+  logoUrl      String?
+  adresse      String?
+  ville        String?
+  pays         String              @default("Bénin")
+  telephone    String?
+  email        String?
+  description  String?
+  slug         String              @unique // pour la page publique /etablissements/[slug]
+  status       EtablissementStatus @default(PENDING)
+  pagePublique PagePublique?
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+
+  user              User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  subscription      Subscription?
+  classes           Classe[]
+  matricules        Matricule[]
+  eleveProfiles     EleveProfile[]
+  communicationLogs CommunicationLog[]
+  generatedReports  GeneratedReport[]
+  communautes       Communaute[]
+
+  @@map("etablissement_profiles")
+}
+
+model PagePublique {
+  id              String   @id @default(cuid())
+  etablissementId String   @unique
+  filieres        String[] // liste des filières proposées
+  photosUrls      String[]
+  statsPubliques  Json? // ex: { totalEleves: 200 }
+  isPublished     Boolean  @default(false)
+  updatedAt       DateTime @updatedAt
+
+  etablissement EtablissementProfile @relation(fields: [etablissementId], references: [id], onDelete: Cascade)
+
+  @@map("pages_publiques")
+}
+
+model Subscription {
+  id              String           @id @default(cuid())
+  etablissementId String           @unique
+  plan            SubscriptionPlan
+  maxLicences     Int
+  licencesUsed    Int              @default(0)
+  startDate       DateTime
+  endDate         DateTime
+  isActive        Boolean          @default(true)
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  etablissement EtablissementProfile @relation(fields: [etablissementId], references: [id], onDelete: Cascade)
+  invoices      Invoice[]
+
+  @@map("subscriptions")
+}
+
+model Invoice {
+  id             String    @id @default(cuid())
+  subscriptionId String
+  amount         Float
+  currency       String    @default("XOF")
+  paidAt         DateTime?
+  invoiceUrl     String?
+  createdAt      DateTime  @default(now())
+
+  subscription Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+
+  @@map("invoices")
+}
+
+model Classe {
+  id              String   @id @default(cuid())
+  etablissementId String
+  nom             String // ex: "3ème A", "Terminale C"
+  niveau          String // ex: TROISIEME, TERMINALE
+  anneesScolaire  String // ex: "2024-2025"
+  createdAt       DateTime @default(now())
+
+  etablissement EtablissementProfile @relation(fields: [etablissementId], references: [id], onDelete: Cascade)
+  eleves        EleveProfile[]
+
+  @@map("classes")
+}
+
+model Matricule {
+  id              String          @id @default(cuid())
+  code            String          @unique
+  etablissementId String
+  classeId        String?
+  status          MatriculeStatus @default(LIBRE)
+  createdAt       DateTime        @default(now())
+
+  etablissement EtablissementProfile @relation(fields: [etablissementId], references: [id], onDelete: Cascade)
+  eleveProfile  EleveProfile?
+
+  @@map("matricules")
+}
+
+// ─────────────────────────────────────────
+// ELEVE
+// ─────────────────────────────────────────
+
+model EleveProfile {
+  id                String    @id @default(cuid())
+  userId            String    @unique
+  matriculeId       String    @unique
+  etablissementId   String
+  classeId          String?
+  prenom            String
+  nom               String
+  dateNaissance     DateTime
+  avatarUrl         String?
+  // Coordonnées du parent (saisies à l'inscription) + vérification OTP
+  parentEmail       String?
+  parentTelephone   String?
+  estVerifie        Boolean   @default(false)
+  // Niveau scolaire courant
+  niveauCollege     NiveauCollege?
+  niveauLycee       NiveauLycee?
+  isLycee           Boolean   @default(false) // true quand passage lycée
+  xpTotal           Int       @default(0)
+  streakJours       Int       @default(0)
+  derniereConnexion DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  user          User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  matricule     Matricule            @relation(fields: [matriculeId], references: [id])
+  etablissement EtablissementProfile @relation(fields: [etablissementId], references: [id])
+  classe        Classe?              @relation(fields: [classeId], references: [id])
+
+  // Gamification
+  xpHistorique XpHistorique[]
+  badges       EleveBadge[]
+  // Exploration
+  metiersExplores MetierExplore[]
+  metiersModels   MetierMaitrise[]
+  favoris         Favori[]
+  // RIASEC
+  riasecResultat RiasecResultat?
+  // Missions (mode Aventure)
+  missions MissionProgress[]
+  // Notifications
+  notifications Notification[]
+  // Parents liés
+  responsables EleveResponsable[]
+  parentsLies  ParentEnfant[]
+
+  // Communautés (espace collège)
+  communautesMembre        CommunauteMembre[]
+  publications             Publication[]
+  reponses                 Reponse[]
+  reactions                Reaction[]
+  annonces                 Annonce[]
+  evenementsParticipations EvenementParticipant[]
+  defisParticipations      DefiCommunauteParticipation[]
+  ressourcesPartagees      Ressource[]
+  photosGalerie            PhotoGalerie[]
+  signalements             Signalement[]
+
+  // Quêtes collège — Défi du jour / Battle / Studio
+  defiAttempts         DefiAttempt[]
+  battleParticipations BattleParticipant[]
+  studioMemberships    StudioMembership[]
+
+  @@map("eleve_profiles")
+}
+
+model XpHistorique {
+  id        String   @id @default(cuid())
+  eleveId   String
+  points    Int
+  raison    String // ex: "Quiz Médecin", "Mission Développeur"
+  createdAt DateTime @default(now())
+
+  eleve EleveProfile @relation(fields: [eleveId], references: [id], onDelete: Cascade)
+
+  @@map("xp_historique")
+}
+
+model Badge {
+  id          String  @id @default(cuid())
+  nom         String  @unique
+  description String
+  imageUrl    String?
+  type        String? // METIER, NIVEAU, STREAK, OBJECTIF
+
+  elevesBadges EleveBadge[]
+
+  @@map("badges")
+}
+
+model EleveBadge {
+  id       String   @id @default(cuid())
+  eleveId  String
+  badgeId  String
+  obtenuAt DateTime @default(now())
+
+  eleve EleveProfile @relation(fields: [eleveId], references: [id], onDelete: Cascade)
+  badge Badge        @relation(fields: [badgeId], references: [id])
+
+  @@unique([eleveId, badgeId])
+  @@map("eleve_badges")
+}
+
+// ─────────────────────────────────────────
+// METIERS & CONTENUS
+// ─────────────────────────────────────────
+
+model Domaine {
+  id          String   @id @default(cuid())
+  nom         String   @unique
+  description String?
+  iconUrl     String?
+  couleur     String?
+  metiers     Metier[]
+
+  communautes Communaute[]
+
+  @@map("domaines")
+}
+
+model Matiere {
+  id      String          @id @default(cuid())
+  nom     String          @unique
+  slug    String?         @unique // ex : "mathematiques" — aligne avec les fiches Explorer
+  emoji   String?
+  metiers MetierMatiere[]
+
+  communautes Communaute[]
+
+  @@map("matieres")
+}
+
+model Metier {
+  id                String   @id @default(cuid())
+  nom               String   @unique
+  slug              String   @unique
+  domaineId         String?
+  description       String
+  descriptionCourte String?
+  videoUrl          String?
+  imageUrl          String?
+  // Données RIASEC liées — ex: ["I", "A", "S"]
+  riasecTypes       String[]
+  // Niveaux d'études
+  niveauEtudes      String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  domaine     Domaine?         @relation(fields: [domaineId], references: [id])
+  matieres    MetierMatiere[]
+  missions    Mission[]
+  explores    MetierExplore[]
+  maitrises   MetierMaitrise[]
+  favoris     Favori[]
+  decouvertes DecouverteJour[]
+
+  // Quêtes collège
+  defisQuotidiens DefiQuotidien[]
+  battleSessions  BattleSession[]
+  studioProjects  StudioProject[]
+  questionsBanque QuestionMetier[]
+  communautes     Communaute[]
+
+  @@map("metiers")
+}
+
+model MetierMatiere {
+  metierId   String
+  matiereId  String
+  importance Int    @default(3) // 1-5 étoiles
+
+  metier  Metier  @relation(fields: [metierId], references: [id], onDelete: Cascade)
+  matiere Matiere @relation(fields: [matiereId], references: [id], onDelete: Cascade)
+
+  @@id([metierId, matiereId])
+  @@map("metier_matieres")
+}
+
+model MetierExplore {
+  id         String   @id @default(cuid())
+  eleveId    String
+  metierId   String
+  exploredAt DateTime @default(now())
+
+  eleve  EleveProfile @relation(fields: [eleveId], references: [id], onDelete: Cascade)
+  metier Metier       @relation(fields: [metierId], references: [id])
+
+  @@unique([eleveId, metierId])
+  @@map("metiers_explores")
+}
+
+model MetierMaitrise {
+  id         String   @id @default(cuid())
+  eleveId    String
+  metierId   String
+  maitriseAt DateTime @default(now())
+
+  eleve  EleveProfile @relation(fields: [eleveId], references: [id], onDelete: Cascade)
+  metier Metier       @relation(fields: [metierId], references: [id])
+
+  @@unique([eleveId, metierId])
+  @@map("metiers_maitrises")
+}
+
+model Favori {
+  id        String   @id @default(cuid())
+  eleveId   String
+  metierId  String
+  createdAt DateTime @default(now())
+
+  eleve  EleveProfile @relation(fields: [eleveId], references: [id], onDelete: Cascade)
+  metier Metier       @relation(fields: [metierId], references: [id])
+
+  @@unique([eleveId, metierId])
+  @@map("favoris")
+}
+
+// ─────────────────────────────────────────
+// MISSIONS — mode Aventure des Quêtes
+// (chapitre = Mission, étape = MissionEtape)
+// ─────────────────────────────────────────
+
+model Mission {
+  id           String  @id @default(cuid())
+  metierId     String
+  titre        String
+  description  String
+  ordre        Int // séquence dans le métier
+  estBoss      Boolean @default(false)
+  xpRecompense Int     @default(100)
+
+  metier  Metier            @relation(fields: [metierId], references: [id], onDelete: Cascade)
+  etapes  MissionEtape[]
+  progres MissionProgress[]
+
+  @@map("missions")
+}
+
+model MissionEtape {
+  id           String      @id @default(cuid())
+  missionId    String
+  ordre        Int // 1, 2, 3
+  type         MissionStep // QUIZ, MISE_EN_SITUATION, DEFI_RAPIDE, PROJET_FINAL
+  titre        String
+  contenu      Json // questions, mise en situation, défi
+  xpRecompense Int         @default(30)
+
+  mission Mission               @relation(fields: [missionId], references: [id], onDelete: Cascade)
+  progres MissionStepProgress[]
+
+  @@map("mission_etapes")
+}
+
+model MissionProgress {
+  id          String    @id @default(cuid())
+  eleveId     String
+  missionId   String
+  isComplete  Boolean   @default(false)
+  completedAt DateTime?
+  startedAt   DateTime  @default(now())
+
+  eleve   EleveProfile          @relation(fields: [eleveId], references: [id], onDelete: Cascade)
+  mission Mission               @relation(fields: [missionId], references: [id])
+  etapes  MissionStepProgress[]
+
+  @@unique([eleveId, missionId])
+  @@map("mission_progres")
+}
+
+model MissionStepProgress {
+  id          String    @id @default(cuid())
+  progresId   String
+  etapeId     String
+  isComplete  Boolean   @default(false)
+  score       Int?
+  completedAt DateTime?
+
+  progres MissionProgress @relation(fields: [progresId], references: [id], onDelete: Cascade)
+  etape   MissionEtape    @relation(fields: [etapeId], references: [id])
+
+  @@unique([progresId, etapeId])
+  @@map("mission_step_progres")
+}
+
+// ─────────────────────────────────────────
+// RIASEC (résultat lié au profil élève)
+// ─────────────────────────────────────────
+
+model RiasecResultat {
+  id      String @id @default(cuid())
+  eleveId String @unique
+  // Scores R, I, A, S, E, C (0-100)
+  scoreR  Int    @default(0)
+  scoreI  Int    @default(0)
+  scoreA  Int    @default(0)
+  scoreS  Int    @default(0)
+  scoreE  Int    @default(0)
+  scoreC  Int    @default(0)
+  // Lettres classées de la plus forte à la plus faible (ex: ["I", "A", "C", ...])
+  typesPrincipaux String[]
+  // Code Holland à 3 lettres (ex: "IAC") — partageable façon MBTI
+  hollandCode     String?
+  // "dominant" (écart >= 18), "hybride" (>= 8) ou "polyvalent" (profil plat)
+  profilType      String?
+  // Indice de cohérence 0-100 entre les blocs compétences et identité
+  fiabilite       Int?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  eleve EleveProfile @relation(fields: [eleveId], references: [id], onDelete: Cascade)
+
+  @@map("riasec_resultats")
+}
+
+// ─────────────────────────────────────────
+// RIASEC — QUESTIONNAIRE (36 questions, 6 blocs, options pondérées)
+// Tout le contenu est en base : blocs, questions, options et pondérations
+// sont modifiables sans toucher au code.
+// ─────────────────────────────────────────
+
+model RiasecBloc {
+  id          String  @id @default(cuid())
+  numero      Int     @unique // 1 à 6
+  titre       String // ex : "Ton vibe au quotidien"
+  description String?
+  couleur     String // hex — la barre de progression change de couleur par bloc
+
+  questions QuestionRiasec[]
+
+  @@map("riasec_blocs")
+}
+
+enum QuestionRiasecType {
+  SCENARIO // options multiples pondérées, ordre randomisé à l'affichage
+  ECHELLE  // échelle 0-3 sur une seule dimension, ordre fixe
+}
+
+model QuestionRiasec {
+  id       String             @id @default(cuid())
+  blocId   String
+  bloc     RiasecBloc         @relation(fields: [blocId], references: [id], onDelete: Cascade)
+  ordre    Int // position globale 1..36
+  type     QuestionRiasecType @default(SCENARIO)
+  intitule String
+  // Pour ECHELLE : la dimension mesurée ("R".."C") — sert au contrôle de
+  // cohérence entre le bloc compétences et le bloc identité.
+  dimension String?
+  active    Boolean @default(true)
+
+  options QuestionRiasecOption[]
+
+  createdAt DateTime @default(now())
+
+  @@map("questions_riasec")
+}
+
+model QuestionRiasecOption {
+  id         String         @id @default(cuid())
+  questionId String
+  question   QuestionRiasec @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  ordre      Int
+  texte      String
+  // Pondérations par dimension, ex : { "R": 3 } ou { "S": 2, "E": 1 }
+  poids Json
+
+  @@map("questions_riasec_options")
+}
+
+// Les 6 archétypes (mapping 1:1 avec les dimensions RIASEC), modifiables en base.
+model ArchetypeRiasec {
+  id          String   @id @default(cuid())
+  lettre      String   @unique // "R", "I", "A", "S", "E", "C"
+  nom         String // ex : "L'Analyste"
+  accroche    String
+  explication String
+  qualites    String[]
+  couleur     String // accent hex de l'archétype
+
+  @@map("archetypes_riasec")
+}
+
+// ─────────────────────────────────────────
+// QUÊTES — BANQUE DE QUESTIONS PAR MÉTIER
+// Alimente le Défi du jour et les Battles. Modifiable en base.
+// ─────────────────────────────────────────
+
+model QuestionMetier {
+  id                String  @id @default(cuid())
+  metierId          String
+  metier            Metier  @relation(fields: [metierId], references: [id], onDelete: Cascade)
+  type              String  @default("QCM") // "QCM" ou "VRAI_FAUX"
+  question          String
+  choix             String[] // pour VRAI_FAUX : ["Vrai", "Faux"]
+  bonneReponseIndex Int
+  active            Boolean @default(true)
+
+  @@map("questions_metier")
+}
+
+// ─────────────────────────────────────────
+// QUÊTES COLLÈGE — DÉFI DU JOUR
+// (distinct de DecouverteJour : ici, un vrai mini-quiz noté et chronométré)
+// ─────────────────────────────────────────
+
+model DefiQuotidien {
+  id           String   @id @default(cuid())
+  date         DateTime @db.Date
+  metierId     String
+  metier       Metier   @relation(fields: [metierId], references: [id], onDelete: Cascade)
+  contenu      Json // 5 à 10 questions : { question, choix[], bonneReponseIndex }[]
+  xpRecompense Int      @default(150)
+
+  attempts DefiAttempt[]
+
+  // Un défi par métier et par jour (généré depuis QuestionMetier)
+  @@unique([date, metierId])
+  @@map("defis_quotidiens")
+}
+
+model DefiAttempt {
+  id            String        @id @default(cuid())
+  eleveId       String
+  eleve         EleveProfile  @relation(fields: [eleveId], references: [id], onDelete: Cascade)
+  defiId        String
+  defi          DefiQuotidien @relation(fields: [defiId], references: [id], onDelete: Cascade)
+  score         Int
+  dureeSecondes Int
+  completedAt   DateTime      @default(now())
+
+  @@unique([eleveId, defiId])
+  @@map("defi_attempts")
+}
+
+// ─────────────────────────────────────────
+// QUÊTES COLLÈGE — BATTLE
+// V1 : file d'attente + session. Le déroulé en direct (diffusion des
+// questions et des scores) est à brancher sur un canal temps réel dédié
+// (WebSocket, Pusher, Ably...), indépendant de ce schéma.
+// ─────────────────────────────────────────
+
+enum BattleType {
+  DUEL
+  BATTLE_ROYALE
+}
+
+enum BattleStatus {
+  EN_ATTENTE
+  EN_COURS
+  TERMINEE
+}
+
+model BattleSession {
+  id       String       @id @default(cuid())
+  metierId String
+  metier   Metier       @relation(fields: [metierId], references: [id], onDelete: Cascade)
+  type     BattleType
+  status   BattleStatus @default(EN_ATTENTE)
+  contenu  Json // banque de questions utilisée pour la session
+
+  participants BattleParticipant[]
+
+  createdAt DateTime  @default(now())
+  startedAt DateTime?
+  endedAt   DateTime?
+
+  @@map("battle_sessions")
+}
+
+model BattleParticipant {
+  id        String        @id @default(cuid())
+  sessionId String
+  session   BattleSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  eleveId   String
+  eleve     EleveProfile  @relation(fields: [eleveId], references: [id], onDelete: Cascade)
+
+  score   Int     @default(0)
+  tempsMs Int?
+  elimine Boolean @default(false)
+  rang    Int?
+
+  @@unique([sessionId, eleveId])
+  @@map("battle_participants")
+}
+
+// ─────────────────────────────────────────
+// QUÊTES COLLÈGE — STUDIO (coopération projet)
+// ─────────────────────────────────────────
+
+enum StudioRole {
+  DEVELOPPEUR
+  UI_DESIGNER
+  UX_DESIGNER
+  DATA_ANALYST
+  COMMUNITY_MANAGER
+  PRODUCT_MANAGER
+}
+
+enum StudioPhase {
+  IDEE
+  CONCEPTION
+  CONSTRUCTION
+  FINALISATION
+}
+
+model StudioProject {
+  id        String      @id @default(cuid())
+  metierId  String
+  metier    Metier      @relation(fields: [metierId], references: [id], onDelete: Cascade)
+  titre     String
+  phase     StudioPhase @default(IDEE)
+  codeAcces String      @unique // code court pour rejoindre le projet
+
+  membres StudioMembership[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("studio_projects")
+}
+
+model StudioMembership {
+  id        String        @id @default(cuid())
+  projectId String
+  project   StudioProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  eleveId   String
+  eleve     EleveProfile  @relation(fields: [eleveId], references: [id], onDelete: Cascade)
+  role      StudioRole
+
+  missionsFaites Json @default("[]")
+
+  joinedAt DateTime @default(now())
+
+  @@unique([projectId, eleveId])
+  @@map("studio_memberships")
+}
+
+// ─────────────────────────────────────────
+// PARENT
+// ─────────────────────────────────────────
+
+model ParentProfile {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  prenom    String
+  nom       String
+  telephone String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user          User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  enfants       ParentEnfant[]
+  commentaires  CommentaireParent[]
+  notifConfig   NotifConfig?
+  notifications ParentNotification[]
+
+  @@map("parent_profiles")
+}
+
+model ParentEnfant {
+  id          String   @id @default(cuid())
+  parentId    String
+  eleveId     String
+  lienParente String // "Père", "Mère", "Tuteur", etc.
+  createdAt   DateTime @default(now())
+
+  parent ParentProfile @relation(fields: [parentId], references: [id], onDelete: Cascade)
+  eleve  EleveProfile  @relation(fields: [eleveId], references: [id], onDelete: Cascade)
+
+  @@unique([parentId, eleveId])
+  @@map("parent_enfants")
+}
+
+model CommentaireParent {
+  id        String   @id @default(cuid())
+  parentId  String
+  eleveId   String
+  contenu   String
+  createdAt DateTime @default(now())
+
+  parent ParentProfile @relation(fields: [parentId], references: [id], onDelete: Cascade)
+
+  @@map("commentaires_parents")
+}
+
+model NotifConfig {
+  id        String                @id @default(cuid())
+  parentId  String                @unique
+  canal     NotificationChannel   @default(PUSH)
+  frequence NotificationFrequency @default(DAILY)
+  updatedAt DateTime              @updatedAt
+
+  parent ParentProfile @relation(fields: [parentId], references: [id], onDelete: Cascade)
+
+  @@map("notif_configs")
+}
+
+// ─────────────────────────────────────────
+// RESPONSABLE ELEVE (géré par établissement)
+// ─────────────────────────────────────────
+
+model EleveResponsable {
+  id          String  @id @default(cuid())
+  eleveId     String
+  nom         String
+  prenom      String
+  telephone   String
+  email       String?
+  lienParente String
+
+  eleve EleveProfile @relation(fields: [eleveId], references: [id], onDelete: Cascade)
+
+  @@map("eleve_responsables")
+}
+
+// ─────────────────────────────────────────
+// NOTIFICATIONS
+// ─────────────────────────────────────────
+
+model Notification {
+  id        String   @id @default(cuid())
+  eleveId   String
+  titre     String
+  message   String
+  isRead    Boolean  @default(false)
+  type      String // BADGE, MISSION, RAPPEL, SYSTEME
+  createdAt DateTime @default(now())
+
+  eleve EleveProfile @relation(fields: [eleveId], references: [id], onDelete: Cascade)
+
+  @@map("notifications")
+}
+
+// ─────────────────────────────────────────
+// DECOUVERTE DU JOUR
+// ─────────────────────────────────────────
+
+model DecouverteJour {
+  id          String   @id @default(cuid())
+  metierId    String
+  saviez_vous String // l'anecdote / fait surprenant
+  dateAffiche DateTime @unique @default(now())
+  // Carte d'identité professionnelle
+  prenom      String
+  nom         String
+  photoUrl    String?
+
+  metier Metier @relation(fields: [metierId], references: [id])
+
+  @@map("decouvertes_jour")
+}
+
+// ─────────────────────────────────────────
+// ADMIN
+// ─────────────────────────────────────────
+
+model AdminProfile {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  prenom    String
+  nom       String
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("admin_profiles")
+}
+
+model ParentNotification {
+  id        String   @id @default(cuid())
+  parentId  String
+  titre     String
+  message   String
+  isRead    Boolean  @default(false)
+  type      String
+  createdAt DateTime @default(now())
+
+  parent ParentProfile @relation(fields: [parentId], references: [id], onDelete: Cascade)
+
+  @@map("parent_notifications")
+}
+
+model CommunicationLog {
+  id              String   @id @default(cuid())
+  etablissementId String
+  eleveId         String?
+  eleveNom        String
+  canal           String
+  statut          String   @default("envoye")
+  createdAt       DateTime @default(now())
+
+  etablissement EtablissementProfile @relation(fields: [etablissementId], references: [id], onDelete: Cascade)
+
+  @@map("communication_logs")
+}
+
+model GeneratedReport {
+  id              String   @id @default(cuid())
+  etablissementId String
+  type            String
+  cibleId         String?
+  cibleNom        String
+  url             String?
+  createdAt       DateTime @default(now())
+
+  etablissement EtablissementProfile @relation(fields: [etablissementId], references: [id], onDelete: Cascade)
+
+  @@map("generated_reports")
+}
+
+// ─────────────────────────────────────────
+// COMMUNAUTÉS (espace collège)
+// ─────────────────────────────────────────
+
+enum CommunauteType {
+  MATIERE // une communauté par matière scolaire (point d'entrée collège)
+  DOMAINE // ex : Informatique, Santé, Droit...
+  METIER // ex : Développeurs, Médecins...
+  GUILDE // groupe de jeu, XP collectif, classement
+  CLUB_SCOLAIRE // rattaché à un établissement
+  PRIVEE // créée par un enseignant, une entreprise, une association
+}
+
+enum MembreRole {
+  MEMBRE
+  MODERATEUR
+  ADMIN
+}
+
+model Communaute {
+  id          String         @id @default(cuid())
+  type        CommunauteType
+  nom         String
+  slug        String         @unique
+  description String
+  imageUrl    String?
+
+  // Rattachements optionnels selon le type de communauté
+  matiereId       String? // pour CommunauteType.MATIERE
+  matiere         Matiere?              @relation(fields: [matiereId], references: [id])
+  domaineId       String? // pour CommunauteType.DOMAINE
+  domaine         Domaine?              @relation(fields: [domaineId], references: [id])
+  metierId        String? // pour CommunauteType.METIER
+  metier          Metier?               @relation(fields: [metierId], references: [id])
+  etablissementId String? // pour CommunauteType.CLUB_SCOLAIRE
+  etablissement   EtablissementProfile? @relation(fields: [etablissementId], references: [id])
+
+  estPrivee      Boolean @default(false)
+  codeInvitation String? @unique // requis pour rejoindre si estPrivee = true
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  membres      CommunauteMembre[]
+  publications Publication[]
+  annonces     Annonce[]
+  evenements   Evenement[]
+  defis        DefiCommunaute[]
+  ressources   Ressource[]
+  photos       PhotoGalerie[]
+
+  @@map("communautes")
+}
+
+model CommunauteMembre {
+  id           String       @id @default(cuid())
+  communauteId String
+  communaute   Communaute   @relation(fields: [communauteId], references: [id], onDelete: Cascade)
+  eleveId      String
+  eleve        EleveProfile @relation(fields: [eleveId], references: [id], onDelete: Cascade)
+  role         MembreRole   @default(MEMBRE)
+  xpGuilde     Int          @default(0) // cumul XP gagné au sein de cette communauté (guildes)
+  joinedAt     DateTime     @default(now())
+
+  @@unique([communauteId, eleveId])
+  @@map("communaute_membres")
+}
+
+model Publication {
+  id           String       @id @default(cuid())
+  communauteId String
+  communaute   Communaute   @relation(fields: [communauteId], references: [id], onDelete: Cascade)
+  auteurId     String
+  auteur       EleveProfile @relation(fields: [auteurId], references: [id], onDelete: Cascade)
+
+  contenu  String
+  imageUrl String?
+
+  // Sondage optionnel : { question: string, options: string[] }
+  sondage Json?
+
+  createdAt DateTime @default(now())
+
+  reponses     Reponse[]
+  reactions    Reaction[]
+  signalements Signalement[]
+
+  @@map("publications")
+}
+
+model Reponse {
+  id            String       @id @default(cuid())
+  publicationId String
+  publication   Publication  @relation(fields: [publicationId], references: [id], onDelete: Cascade)
+  auteurId      String
+  auteur        EleveProfile @relation(fields: [auteurId], references: [id], onDelete: Cascade)
+  contenu       String
+  createdAt     DateTime     @default(now())
+
+  @@map("reponses")
+}
+
+model Reaction {
+  id            String       @id @default(cuid())
+  publicationId String
+  publication   Publication  @relation(fields: [publicationId], references: [id], onDelete: Cascade)
+  auteurId      String
+  auteur        EleveProfile @relation(fields: [auteurId], references: [id], onDelete: Cascade)
+  emoji         String // ex : "like", "coeur", "bravo"
+  createdAt     DateTime     @default(now())
+
+  @@unique([publicationId, auteurId])
+  @@map("reactions")
+}
+
+model Signalement {
+  id            String       @id @default(cuid())
+  publicationId String?
+  publication   Publication? @relation(fields: [publicationId], references: [id], onDelete: Cascade)
+  auteurId      String
+  auteur        EleveProfile @relation(fields: [auteurId], references: [id], onDelete: Cascade)
+  raison        String
+  traite        Boolean      @default(false)
+  createdAt     DateTime     @default(now())
+
+  @@map("signalements")
+}
+
+model Annonce {
+  id           String       @id @default(cuid())
+  communauteId String
+  communaute   Communaute   @relation(fields: [communauteId], references: [id], onDelete: Cascade)
+  auteurId     String
+  auteur       EleveProfile @relation(fields: [auteurId], references: [id], onDelete: Cascade)
+  titre        String
+  contenu      String
+  createdAt    DateTime     @default(now())
+
+  @@map("annonces")
+}
+
+enum EvenementStatutParticipant {
+  INTERESSE
+  PARTICIPE
+}
+
+model Evenement {
+  id           String     @id @default(cuid())
+  communauteId String
+  communaute   Communaute @relation(fields: [communauteId], references: [id], onDelete: Cascade)
+  titre        String
+  description  String
+  lieu         String? // lieu physique ou lien de visioconférence
+  dateDebut    DateTime
+  dateFin      DateTime?
+  createdAt    DateTime   @default(now())
+
+  participants EvenementParticipant[]
+
+  @@map("evenements")
+}
+
+model EvenementParticipant {
+  id          String                     @id @default(cuid())
+  evenementId String
+  evenement   Evenement                  @relation(fields: [evenementId], references: [id], onDelete: Cascade)
+  eleveId     String
+  eleve       EleveProfile               @relation(fields: [eleveId], references: [id], onDelete: Cascade)
+  statut      EvenementStatutParticipant @default(INTERESSE)
+
+  @@unique([evenementId, eleveId])
+  @@map("evenement_participants")
+}
+
+enum DefiCommunauteStatut {
+  EN_COURS
+  TERMINE
+}
+
+model DefiCommunaute {
+  id           String     @id @default(cuid())
+  communauteId String
+  communaute   Communaute @relation(fields: [communauteId], references: [id], onDelete: Cascade)
+  titre        String
+  description  String
+  xpRecompense Int        @default(100)
+  dateLimite   DateTime?
+  createdAt    DateTime   @default(now())
+
+  participations DefiCommunauteParticipation[]
+
+  @@map("defis_communaute")
+}
+
+model DefiCommunauteParticipation {
+  id          String               @id @default(cuid())
+  defiId      String
+  defi        DefiCommunaute       @relation(fields: [defiId], references: [id], onDelete: Cascade)
+  eleveId     String
+  eleve       EleveProfile         @relation(fields: [eleveId], references: [id], onDelete: Cascade)
+  statut      DefiCommunauteStatut @default(EN_COURS)
+  completedAt DateTime?
+
+  @@unique([defiId, eleveId])
+  @@map("defi_communaute_participations")
+}
+
+model Ressource {
+  id           String       @id @default(cuid())
+  communauteId String
+  communaute   Communaute   @relation(fields: [communauteId], references: [id], onDelete: Cascade)
+  auteurId     String
+  auteur       EleveProfile @relation(fields: [auteurId], references: [id], onDelete: Cascade)
+  titre        String
+  url          String
+  description  String?
+  createdAt    DateTime     @default(now())
+
+  @@map("ressources")
+}
+
+model PhotoGalerie {
+  id           String       @id @default(cuid())
+  communauteId String
+  communaute   Communaute   @relation(fields: [communauteId], references: [id], onDelete: Cascade)
+  auteurId     String
+  auteur       EleveProfile @relation(fields: [auteurId], references: [id], onDelete: Cascade)
+  imageUrl     String
+  legende      String?
+  createdAt    DateTime     @default(now())
+
+  @@map("photos_galerie")
+}

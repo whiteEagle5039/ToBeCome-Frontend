@@ -7,10 +7,10 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",
-    "postinstall": "prisma generate --schema ../backend/prisma/schema.prisma",
-    "db:generate": "prisma generate --schema ../backend/prisma/schema.prisma",
-    "db:push": "prisma db push --schema ../backend/prisma/schema.prisma",
-    "db:seed": "tsx ../backend/prisma/seed.ts"
+    "postinstall": "prisma generate --schema ./prisma/schema.prisma",
+    "db:generate": "prisma generate --schema ./prisma/schema.prisma",
+    "db:push": "prisma db push --schema ./prisma/schema.prisma",
+    "db:seed": "tsx ./prisma/seed.ts"
   },
   "dependencies": {
     "@base-ui/react": "^1.5.0",
