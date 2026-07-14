@@ -7,6 +7,7 @@ import { EmptyState } from "@/components/etablissement/EmptyState";
 import { Skeleton } from "@/components/etablissement/Skeleton";
 import { Badge } from "@/components/etablissement/Badge";
 import { Modal } from "@/components/etablissement/Modal";
+import { ImportElevesModal } from "@/components/etablissement/ImportElevesModal";
 import type { Classe, Eleve, StatutEleve } from "@/types/etablissement"
 import { fetchClasses, fetchEleves } from "@/lib/api/etablissement"
 
@@ -18,10 +19,15 @@ export default function ElevesPage() {
   const [statutFiltre, setStatutFiltre] = useState<StatutEleve | "tous">("tous");
   const [selectionnes, setSelectionnes] = useState<Set<string>>(new Set());
   const [eleveOuvert, setEleveOuvert] = useState<Eleve | null>(null);
+  const [importOuvert, setImportOuvert] = useState(false);
 
-  useEffect(() => {
+  function recharger() {
     fetchEleves().then(setEleves).catch(() => setEleves([]));
     fetchClasses().then(setClasses).catch(() => setClasses([]));
+  }
+
+  useEffect(() => {
+    recharger();
   }, []);
 
   const elevesFiltres = useMemo(() => {
@@ -94,7 +100,10 @@ export default function ElevesPage() {
           </div>
 
           <div className="flex gap-2">
-            <button className="flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50">
+            <button
+              onClick={() => setImportOuvert(true)}
+              className="flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50"
+            >
               <Upload className="h-4 w-4" /> Importer
             </button>
             <button className="flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50">
@@ -126,7 +135,7 @@ export default function ElevesPage() {
               title="Aucun élève trouvé"
               description="Importez votre liste d'élèves ou générez des matricules pour commencer à peupler cet espace."
               actionLabel="Importer des élèves"
-              onAction={() => {}}
+              onAction={() => setImportOuvert(true)}
             />
           ) : (
             <table className="w-full text-left text-sm">
@@ -233,6 +242,13 @@ export default function ElevesPage() {
           </div>
         )}
       </Modal>
+
+      <ImportElevesModal
+        open={importOuvert}
+        onClose={() => setImportOuvert(false)}
+        classes={classes}
+        onImported={recharger}
+      />
     </>
   );
 }

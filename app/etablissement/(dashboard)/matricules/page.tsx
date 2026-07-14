@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { KeyRound, Plus, Layers, Upload } from "lucide-react";
+import { KeyRound, Plus, Layers, Upload, Loader2, XCircle } from "lucide-react";
 import { TopBar } from "@/components/etablissement/TopBar";
 import { EmptyState } from "@/components/etablissement/EmptyState";
 import { Skeleton } from "@/components/etablissement/Skeleton";
@@ -9,25 +9,44 @@ import { Badge } from "@/components/etablissement/Badge";
 import { Modal } from "@/components/etablissement/Modal";
 import type { Matricule } from "@/types/etablissement"
 import { fetchMatricules, generateMatricules } from "@/lib/api/etablissement"
+import { getApiErrorMessage } from "@/lib/api/client"
 
 export default function MatriculesPage() {
   const [matricules, setMatricules] = useState<Matricule[] | null>(null);
   const [modalLot, setModalLot] = useState(false);
   const [quantite, setQuantite] = useState(10);
+  const [generation, setGeneration] = useState(false);
+  const [erreur, setErreur] = useState<string | null>(null);
 
   useEffect(() => {
     fetchMatricules().then(setMatricules).catch(() => setMatricules([]));
   }, []);
 
-  function genererUnitaire() {
-    // TODO: appeler l'API de génération d'un matricule unique
-    console.log("Génération d'un matricule unitaire");
+  async function genererUnitaire() {
+    setErreur(null);
+    setGeneration(true);
+    try {
+      const generes = await generateMatricules({ count: 1 });
+      setMatricules((prev) => [...generes, ...(prev ?? [])]);
+    } catch (err) {
+      setErreur(getApiErrorMessage(err, "La génération du matricule a échoué."));
+    } finally {
+      setGeneration(false);
+    }
   }
 
-  function genererEnLot() {
-    // TODO: appeler l'API de génération en lot
-    console.log("Génération en lot", quantite);
-    setModalLot(false);
+  async function genererEnLot() {
+    setErreur(null);
+    setGeneration(true);
+    try {
+      const generes = await generateMatricules({ count: quantite });
+      setMatricules((prev) => [...generes, ...(prev ?? [])]);
+      setModalLot(false);
+    } catch (err) {
+      setErreur(getApiErrorMessage(err, "La génération des matricules a échoué."));
+    } finally {
+      setGeneration(false);
+    }
   }
 
   const utilises = matricules?.filter((m) => m.statut === "utilise").length ?? 0;
@@ -44,13 +63,15 @@ export default function MatriculesPage() {
         <div className="mb-4 flex flex-wrap gap-2">
           <button
             onClick={genererUnitaire}
-            className="flex items-center gap-2 rounded-xl bg-[#0F766E] px-4 py-2 text-sm font-medium text-white hover:bg-[#0c5f59]"
+            disabled={generation}
+            className="flex items-center gap-2 rounded-xl bg-[#0F766E] px-4 py-2 text-sm font-medium text-white hover:bg-[#0c5f59] disabled:cursor-not-allowed disabled:opacity-50"
           >
-            <Plus className="h-4 w-4" /> Générer un matricule
+            {generation ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />} Générer un matricule
           </button>
           <button
             onClick={() => setModalLot(true)}
-            className="flex items-center gap-2 rounded-xl border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50"
+            disabled={generation}
+            className="flex items-center gap-2 rounded-xl border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
           >
             <Layers className="h-4 w-4" /> Générer en lot
           </button>
@@ -58,6 +79,13 @@ export default function MatriculesPage() {
             <Upload className="h-4 w-4" /> Importer des matricules existants
           </button>
         </div>
+
+        {erreur && (
+          <div className="mb-4 flex items-start gap-2 rounded-xl border border-rose-200 bg-rose-50 px-4 py-2.5 text-sm text-rose-700">
+            <XCircle className="mt-0.5 h-4 w-4 shrink-0" />
+            <span>{erreur}</span>
+          </div>
+        )}
 
         <div className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm">
           {matricules === null ? (
@@ -120,9 +148,10 @@ export default function MatriculesPage() {
             </button>
             <button
               onClick={genererEnLot}
-              className="rounded-xl bg-[#0F766E] px-4 py-2 text-sm font-medium text-white hover:bg-[#0c5f59]"
+              disabled={generation || quantite < 1}
+              className="flex items-center gap-2 rounded-xl bg-[#0F766E] px-4 py-2 text-sm font-medium text-white hover:bg-[#0c5f59] disabled:cursor-not-allowed disabled:opacity-50"
             >
-              Générer
+              {generation && <Loader2 className="h-4 w-4 animate-spin" />} Générer
             </button>
           </>
         }

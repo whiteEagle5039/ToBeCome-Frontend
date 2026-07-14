@@ -1,4 +1,5 @@
 import { api } from "./client"
+import type { BackendEleveRole } from "./client"
 import type {
   Abonnement,
   Alerte,
@@ -179,19 +180,25 @@ export async function shareRapportWhatsApp(rapportId: string, telephone: string)
   return data
 }
 
-export async function importEleves(file: File) {
-  const text = await file.text()
-  let rows: Array<{ prenom: string; nom: string; dateNaissance: string; classeId?: string }> = []
-  if (file.name.endsWith(".json")) {
-    rows = JSON.parse(text)
-  } else {
-    const lines = text.trim().split("\n").slice(1)
-    rows = lines.map((line) => {
-      const [prenom, nom, dateNaissance, classeId] = line.split(",").map((s) => s.trim())
-      return { prenom, nom, dateNaissance, classeId }
-    })
-  }
-  const { data } = await api.post<{ imported: number }>("/api/etablissement/eleves/import", { eleves: rows })
+export interface ImportElevePayload {
+  prenom: string
+  nom: string
+  dateNaissance: string
+  classeId: string
+  role: BackendEleveRole
+}
+
+export type ImportEleveResult =
+  | { success: true; matricule: string; userId: string }
+  | { success: false; name?: string; error: string }
+
+export interface ImportElevesResponse {
+  imported: number
+  results: ImportEleveResult[]
+}
+
+export async function importEleves(eleves: ImportElevePayload[]): Promise<ImportElevesResponse> {
+  const { data } = await api.post<ImportElevesResponse>("/api/etablissement/eleves/import", { eleves })
   return data
 }
 
