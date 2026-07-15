@@ -88,6 +88,8 @@ export function BattleRoom({
     setMessageTexte("");
   };
 
+  const basculerMicro = () => (micActif ? actions.couperMicro(true) : actions.activerMicro());
+
   // ── Connexion (y compris réveil à froid du backend Render en plan gratuit) ─
   if (phase === "connexion") {
     return (
@@ -189,6 +191,7 @@ export function BattleRoom({
           micActif={micActif}
           micsCoupes={micsCoupes}
           enTrainDeParler={enTrainDeParler}
+          onToggleMicro={basculerMicro}
         />
       </main>
     );
@@ -249,6 +252,7 @@ export function BattleRoom({
           micsCoupes={micsCoupes}
           enTrainDeParler={enTrainDeParler}
           progressionParParticipant={progressionParParticipant}
+          onToggleMicro={basculerMicro}
         />
       </main>
     );
@@ -380,6 +384,7 @@ function ParticipantsBar({
   micsCoupes,
   enTrainDeParler,
   progressionParParticipant,
+  onToggleMicro,
 }: {
   participants: BattleParticipantVue[];
   participantId: string;
@@ -388,24 +393,30 @@ function ParticipantsBar({
   enTrainDeParler: Record<string, boolean>;
   /** Fourni pendant le jeu (0..1 par participant) ; absent dans le salon d'attente (anneau prêt/en attente). */
   progressionParParticipant?: Record<string, number>;
+  /** Clique sur son propre avatar : bascule le micro (dispo en salon comme en pleine partie). */
+  onToggleMicro: () => void;
 }) {
   if (participants.length === 0) return null;
   return (
     <div className="fixed inset-x-0 bottom-0 z-20 border-t border-espace-border bg-white/95 backdrop-blur">
       <div className="no-scrollbar mx-auto flex max-w-xl gap-4 overflow-x-auto px-4 pb-3 pt-3">
-        {participants.map((p) => (
-          <ParticipantAvatar
-            key={p.id}
-            nom={p.nom}
-            moi={p.id === participantId}
-            hote={p.hote}
-            invite={p.estInvite}
-            micCoupe={p.id === participantId ? !micActif : micsCoupes[p.id] !== false}
-            enParle={!!enTrainDeParler[p.id]}
-            progression={progressionParParticipant?.[p.id]}
-            pret={progressionParParticipant ? undefined : p.pret}
-          />
-        ))}
+        {participants.map((p) => {
+          const moi = p.id === participantId;
+          return (
+            <ParticipantAvatar
+              key={p.id}
+              nom={p.nom}
+              moi={moi}
+              hote={p.hote}
+              invite={p.estInvite}
+              micCoupe={moi ? !micActif : micsCoupes[p.id] !== false}
+              enParle={!!enTrainDeParler[p.id]}
+              progression={progressionParParticipant?.[p.id]}
+              pret={progressionParParticipant ? undefined : p.pret}
+              onClick={moi ? onToggleMicro : undefined}
+            />
+          );
+        })}
       </div>
     </div>
   );

@@ -18,6 +18,8 @@ type ParticipantAvatarProps = {
   /** Anneau plein (prêt) ou pointillé (en attente) — utilisé dans le salon d'attente, ignoré si `progression` est fourni. */
   pret?: boolean;
   taille?: Taille;
+  /** Si fourni, l'avatar devient cliquable (bascule micro) — n'a de sens que pour son propre avatar (`moi`). */
+  onClick?: () => void;
 };
 
 const CONFIG_TAILLE: Record<Taille, { boite: number; epaisseur: number; rayon: number; avatar: number; police: number }> = {
@@ -44,15 +46,35 @@ export function ParticipantAvatar({
   progression,
   pret = false,
   taille = "md",
+  onClick,
 }: ParticipantAvatarProps) {
   const { boite, epaisseur, rayon, avatar, police } = CONFIG_TAILLE[taille];
   const circonference = 2 * Math.PI * rayon;
   const enAttente = progression === undefined && !pret;
   const afficherAnneauPlein = progression !== undefined || pret;
   const ratio = progression !== undefined ? Math.min(1, Math.max(0, progression)) : 1;
+  const libelleAction = micCoupe ? "Activer ton micro" : "Couper ton micro";
 
   return (
-    <div className="flex flex-col items-center gap-1" style={{ width: boite }}>
+    <div
+      className={`flex flex-col items-center gap-1 ${onClick ? "cursor-pointer select-none transition hover:opacity-80 active:opacity-60" : ""}`}
+      style={{ width: boite }}
+      onClick={onClick}
+      role={onClick ? "button" : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      aria-label={onClick ? libelleAction : undefined}
+      title={onClick ? libelleAction : undefined}
+      onKeyDown={
+        onClick
+          ? (e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                onClick();
+              }
+            }
+          : undefined
+      }
+    >
       <div className="relative" style={{ width: boite, height: boite }}>
         <svg width={boite} height={boite} className="-rotate-90">
           <circle

@@ -15,8 +15,11 @@ const items = [
 
 export default function BottomNavCollege() {
   const pathname = usePathname();
+  const isAuthPage = pathname?.startsWith("/college/connexion");
+  const isPublicBattlePage = pathname?.startsWith("/college/battle/");
+  const isMetierBattlePage = pathname?.includes("/college/quetes/metiers/") && pathname?.endsWith("/battle");
 
-  if (pathname?.startsWith("/college/connexion")) {
+  if (isAuthPage || isPublicBattlePage || isMetierBattlePage) {
     return null;
   }
 
