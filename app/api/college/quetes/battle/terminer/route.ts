@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getCurrentEleve } from "@/lib/college/auth/session";
+import { nomParticipant } from "@/lib/college/quetes/battle-shared";
 
 const XP_VAINQUEUR = 200;
 const XP_PARTICIPANT = 50;
@@ -9,15 +9,18 @@ const XP_PARTICIPANT = 50;
  * Un joueur termine sa série de questions : on enregistre score + temps.
  * Quand tous les participants ont fini (ou que le fantôme est battu/vainqueur),
  * la session passe TERMINEE, le classement est calculé (score décroissant,
- * temps croissant) et l'XP est créditée.
+ * temps croissant) et l'XP est créditée — uniquement aux sièges élèves, les
+ * invités n'ayant pas de profil pour la recevoir.
+ *
+ * Identité vérifiée par participantId + guestToken (attribué à tout siège,
+ * élève ou invité, à la création/adhésion du salon), pas par cookie de
+ * session : un invité sans compte doit pouvoir terminer sa partie.
  */
 export async function POST(req: NextRequest) {
-  const eleve = await getCurrentEleve();
-  if (!eleve) {
-    return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
+  const { sessionId, participantId, guestToken, score, tempsMs } = await req.json();
+  if (!sessionId || !participantId || !guestToken) {
+    return NextResponse.json({ error: "Identifiants de salon manquants" }, { status: 400 });
   }
-
-  const { sessionId, score, tempsMs } = await req.json();
 
   const session = await prisma.battleSession.findUnique({
     where: { id: sessionId },
@@ -27,7 +30,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Session introuvable" }, { status: 404 });
   }
 
-  const moi = session.participants.find((p) => p.eleveId === eleve.id);
+  const moi = session.participants.find((p) => p.id === participantId && p.guestToken === guestToken);
   if (!moi) {
     return NextResponse.json({ error: "Tu ne participes pas à cette session" }, { status: 403 });
   }
@@ -48,11 +51,11 @@ export async function POST(req: NextRequest) {
   const tousFinis = participants.every((p) => p.tempsMs !== null);
 
   if (tousFinis && session.status !== "TERMINEE") {
-    // Classement : les vrais joueurs + éventuellement le fantôme
+    // Classement : les vrais joueurs (élèves ou invités) + éventuellement le fantôme
     const classement: { participantId: string | null; nom: string; score: number; tempsMs: number }[] =
       participants.map((p) => ({
         participantId: p.id,
-        nom: `${p.eleve.prenom} ${p.eleve.nom}`,
+        nom: nomParticipant(p),
         score: p.score,
         tempsMs: p.tempsMs ?? 0,
       }));
@@ -74,6 +77,8 @@ export async function POST(req: NextRequest) {
         where: { id: c.participantId },
         data: { rang: i + 1, elimine: i > 0 },
       });
+      // Pas de profil élève côté invité : pas d'XP à créditer.
+      if (!participant.eleveId) continue;
       const xp = i === 0 ? XP_VAINQUEUR : XP_PARTICIPANT;
       await prisma.$transaction([
         prisma.xpHistorique.create({
@@ -100,10 +105,10 @@ export async function POST(req: NextRequest) {
     finale.status === "TERMINEE"
       ? [
           ...finale.participants.map((p) => ({
-            nom: `${p.eleve.prenom} ${p.eleve.nom}`,
+            nom: nomParticipant(p),
             score: p.score,
             tempsMs: p.tempsMs ?? 0,
-            moi: p.eleveId === eleve.id,
+            moi: p.id === moi.id,
             fantome: false,
           })),
           ...(contenu.ghost

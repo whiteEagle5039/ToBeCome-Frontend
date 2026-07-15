@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { randomBytes } from "crypto";
 import { prisma } from "@/lib/prisma";
 import { getCurrentEleve } from "@/lib/college/auth/session";
 import { tirerQuestions } from "@/lib/college/quetes/battle";
@@ -22,12 +23,14 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Métier introuvable" }, { status: 404 });
   }
 
-  // Meilleur score enregistré sur ce métier (hors soi-même) = le fantôme
+  // Meilleur score enregistré sur ce métier (hors soi-même, hors invités
+  // sans compte qui n'ont pas de prénom à afficher) = le fantôme
   const meilleur = await prisma.battleParticipant.findFirst({
     where: {
       session: { metierId: metier.id, status: "TERMINEE" },
       tempsMs: { not: null },
-      eleveId: { not: eleve.id },
+      eleveId: { not: null },
+      NOT: { eleveId: eleve.id },
     },
     orderBy: [{ score: "desc" }, { tempsMs: "asc" }],
     include: { eleve: { select: { prenom: true } } },
@@ -35,7 +38,7 @@ export async function POST(req: NextRequest) {
 
   const ghost = meilleur
     ? {
-        nom: `Fantôme de ${meilleur.eleve.prenom}`,
+        nom: `Fantôme de ${meilleur.eleve!.prenom}`,
         score: meilleur.score,
         tempsMs: meilleur.tempsMs ?? 90000,
       }
@@ -45,6 +48,8 @@ export async function POST(req: NextRequest) {
     where: { metierId: metier.id, active: true },
   });
 
+  const guestToken = randomBytes(24).toString("hex");
+
   const session = await prisma.battleSession.create({
     data: {
       metierId: metier.id,
@@ -52,12 +57,13 @@ export async function POST(req: NextRequest) {
       status: "EN_COURS",
       startedAt: new Date(),
       contenu: { questions: tirerQuestions(banque), ghost },
-      participants: { create: { eleveId: eleve.id } },
+      participants: { create: { eleveId: eleve.id, hote: true, pret: true, guestToken } },
     },
     include: { participants: { include: { eleve: { select: { prenom: true, nom: true } } } } },
   });
 
   const contenu = session.contenu as { questions: unknown[]; ghost: typeof ghost };
+  const moi = session.participants[0];
 
   return NextResponse.json({
     session: {
@@ -67,10 +73,12 @@ export async function POST(req: NextRequest) {
       questions: contenu.questions,
       ghost: contenu.ghost,
       participants: session.participants.map((p) => ({
-        prenom: p.eleve.prenom,
-        nom: p.eleve.nom,
+        prenom: p.eleve!.prenom,
+        nom: p.eleve!.nom,
         fini: false,
       })),
     },
+    participantId: moi.id,
+    guestToken,
   });
 }

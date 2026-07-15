@@ -1,143 +1,172 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { BackButton } from "@/components/college/BackButton";
-import { InviterCommunaute } from "@/components/college/quetes/InviterCommunaute";
+import { BattleRoom } from "@/components/college/quetes/BattleRoom";
+import type { SessionInfo, Question } from "@/components/college/quetes/useBattleRoom";
 
 type BattleType = "DUEL" | "BATTLE_ROYALE";
-type Question = { question: string; choix: string[]; bonneReponseIndex: number };
-type Participant = { prenom?: string; nom?: string; score: number; fini: boolean };
-type Classement = { nom: string; score: number; tempsMs: number; moi: boolean; fantome: boolean }[];
-
 const SECONDES_PAR_QUESTION = 15;
 
+type Salon = { session: SessionInfo; participantId: string; guestToken: string; nomMoi: string };
+type Fantome = { session: any; participantId: string; guestToken: string };
+
 /**
- * Battle en ligne :
- * - Temps réel : deux joueurs (ou cinq en Royale) rejoignent la même session
- *   depuis n'importe où ; dès que la salle est pleine, chacun répond aux mêmes
- *   questions, chronométré ; le serveur départage (score puis vitesse).
- * - Asynchrone : affronter le « fantôme » du meilleur score enregistré,
- *   sans attendre personne. Le vainqueur est annoncé à la fin.
+ * Point d'entrée « créateur » du mode Battle : choix du format, création du
+ * salon (l'hôte doit être un élève connecté), puis bascule sur le salon
+ * temps réel partagé (BattleRoom). Le mode fantôme reste asynchrone et
+ * solo, sans salon ni temps réel.
  */
 export default function BattlePage() {
   const params = useParams<{ slug: string }>();
-  const [phase, setPhase] = useState<"choix" | "attente" | "jeu" | "syncro" | "resultat">("choix");
-  const [type, setType] = useState<BattleType>("DUEL");
-  const [session, setSession] = useState<any>(null);
-  const [questions, setQuestions] = useState<Question[]>([]);
-  const [index, setIndex] = useState(0);
-  const [score, setScore] = useState(0);
-  const [chrono, setChrono] = useState(SECONDES_PAR_QUESTION);
-  const [debutJeu, setDebutJeu] = useState(0);
-  const [classement, setClassement] = useState<Classement | null>(null);
-  const [xpGagne, setXpGagne] = useState(0);
-  const scoreRef = useRef(0);
+  const [salon, setSalon] = useState<Salon | null>(null);
+  const [fantome, setFantome] = useState<Fantome | null>(null);
+  const [chargement, setChargement] = useState<BattleType | "FANTOME" | null>(null);
+  const [erreur, setErreur] = useState<string | null>(null);
 
-  // ── File d'attente (temps réel) ────────────────────────────────────────────
-  const rejoindre = async (t: BattleType) => {
-    setType(t);
+  const creerSalon = async (type: BattleType) => {
+    setChargement(type);
+    setErreur(null);
     const res = await fetch("/api/college/quetes/battle", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ metierSlug: params.slug, type: t }),
+      body: JSON.stringify({ metierSlug: params.slug, type }),
     });
     const data = await res.json();
-    setSession(data.session);
-    if (data.session?.status === "EN_COURS" && data.session.questions?.length) {
-      demarrerJeu(data.session.questions);
-    } else {
-      setPhase("attente");
+    setChargement(null);
+    if (!res.ok) {
+      setErreur(data.error ?? "Impossible de créer le salon.");
+      return;
     }
+    const moi = data.session.participants.find((p: { id: string }) => p.id === data.participantId);
+    setSalon({
+      session: data.session,
+      participantId: data.participantId,
+      guestToken: data.guestToken,
+      nomMoi: moi?.nom ?? "Toi",
+    });
   };
 
-  // ── Mode fantôme (asynchrone) ──────────────────────────────────────────────
   const jouerFantome = async () => {
+    setChargement("FANTOME");
+    setErreur(null);
     const res = await fetch("/api/college/quetes/battle/fantome", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ metierSlug: params.slug }),
     });
     const data = await res.json();
-    setSession(data.session);
-    demarrerJeu(data.session.questions);
+    setChargement(null);
+    if (!res.ok) {
+      setErreur(data.error ?? "Impossible de lancer le mode fantôme.");
+      return;
+    }
+    setFantome(data);
   };
 
-  // Polling de la salle d'attente : démarre dès que la salle est pleine
-  useEffect(() => {
-    if (phase !== "attente" || !session?.id) return;
-    const t = setInterval(async () => {
-      const res = await fetch(`/api/college/quetes/battle?sessionId=${session.id}`);
-      const data = await res.json();
-      if (!data.session) return;
-      setSession(data.session);
-      if (data.session.status === "EN_COURS" && data.session.questions?.length) {
-        clearInterval(t);
-        demarrerJeu(data.session.questions);
-      }
-    }, 2500);
-    return () => clearInterval(t);
-  }, [phase, session?.id]);
+  if (fantome) {
+    return <ModeFantome data={fantome} retourHref={`/college/quetes/metiers/${params.slug}/battle`} />;
+  }
 
-  const demarrerJeu = (qs: Question[]) => {
-    setQuestions(qs);
-    setIndex(0);
-    setScore(0);
-    scoreRef.current = 0;
-    setDebutJeu(Date.now());
-    setChrono(SECONDES_PAR_QUESTION);
-    setPhase("jeu");
-  };
+  if (salon) {
+    return (
+      <BattleRoom
+        session={salon.session}
+        participantId={salon.participantId}
+        guestToken={salon.guestToken}
+        nomMoi={salon.nomMoi}
+        retourHref={`/college/quetes/metiers/${params.slug}/battle`}
+      />
+    );
+  }
+
+  return (
+    <main className="mx-auto max-w-xl px-6 py-10">
+      <BackButton href={`/college/quetes/metiers/${params.slug}`} />
+      <p className="text-xs uppercase tracking-wide text-espace-muted">Mode Battle</p>
+      <h1 className="mt-1 text-2xl font-bold text-espace-ink">Choisis ton format</h1>
+
+      {erreur && <p className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{erreur}</p>}
+
+      <div className="mt-6 flex flex-col gap-3">
+        <button
+          onClick={() => creerSalon("DUEL")}
+          disabled={!!chargement}
+          className="rounded-lg border border-espace-border bg-white p-4 text-left transition hover:border-espace-primary disabled:opacity-50"
+        >
+          <p className="font-semibold text-espace-ink">Duel 1 vs 1 — temps réel</p>
+          <p className="mt-1 text-sm text-espace-muted">
+            Crée un salon, partage le lien d'invitation, et lance dès que ton adversaire est prêt.
+          </p>
+        </button>
+        <button
+          onClick={() => creerSalon("BATTLE_ROYALE")}
+          disabled={!!chargement}
+          className="rounded-lg border border-espace-border bg-white p-4 text-left transition hover:border-espace-primary disabled:opacity-50"
+        >
+          <p className="font-semibold text-espace-ink">Battle Royale — jusqu'à 5 joueurs</p>
+          <p className="mt-1 text-sm text-espace-muted">
+            Invite qui tu veux par lien — même sans compte. Lance dès que vous êtes prêts.
+          </p>
+        </button>
+        <button
+          onClick={jouerFantome}
+          disabled={!!chargement}
+          className="rounded-lg border border-espace-border bg-white p-4 text-left transition hover:border-espace-primary disabled:opacity-50"
+        >
+          <p className="font-semibold text-espace-ink">Contre un fantôme — asynchrone</p>
+          <p className="mt-1 text-sm text-espace-muted">
+            Joue immédiatement contre le meilleur score enregistré ; le vainqueur est annoncé à la fin.
+          </p>
+        </button>
+      </div>
+    </main>
+  );
+}
+
+/** Mode fantôme : partie solo asynchrone, sans salon ni temps réel. */
+function ModeFantome({ data, retourHref }: { data: Fantome; retourHref: string }) {
+  const questions: Question[] = data.session.questions;
+  const ghost = data.session.ghost as { nom: string; score: number } | null;
+
+  const [index, setIndex] = useState(0);
+  const [score, setScore] = useState(0);
+  const [chrono, setChrono] = useState(SECONDES_PAR_QUESTION);
+  const [debutJeu] = useState(() => Date.now());
+  const [phase, setPhase] = useState<"jeu" | "resultat">("jeu");
+  const [classement, setClassement] = useState<
+    { nom: string; score: number; tempsMs: number; moi: boolean; fantome: boolean }[] | null
+  >(null);
+  const [xpGagne, setXpGagne] = useState(0);
 
   const terminer = useCallback(
     async (scoreFinal: number) => {
-      setPhase("syncro");
       const res = await fetch("/api/college/quetes/battle/terminer", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          sessionId: session.id,
+          sessionId: data.session.id,
+          participantId: data.participantId,
+          guestToken: data.guestToken,
           score: scoreFinal,
           tempsMs: Date.now() - debutJeu,
         }),
       });
-      const data = await res.json();
-      if (data.status === "TERMINEE") {
-        setClassement(data.classement);
-        setXpGagne(data.xpGagne);
-        setPhase("resultat");
-      }
+      const resultat = await res.json();
+      setClassement(resultat.classement);
+      setXpGagne(resultat.xpGagne);
+      setPhase("resultat");
     },
-    [session?.id, debutJeu]
+    [data, debutJeu]
   );
-
-  // Polling après avoir fini : attendre que les adversaires terminent
-  useEffect(() => {
-    if (phase !== "syncro" || !session?.id) return;
-    const t = setInterval(async () => {
-      const res = await fetch("/api/college/quetes/battle/terminer", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sessionId: session.id, score: scoreRef.current, tempsMs: 0 }),
-      });
-      const data = await res.json();
-      if (data.status === "TERMINEE") {
-        clearInterval(t);
-        setClassement(data.classement);
-        setXpGagne(data.xpGagne);
-        setPhase("resultat");
-      }
-    }, 3000);
-    return () => clearInterval(t);
-  }, [phase, session?.id]);
 
   const repondre = useCallback(
     (correct: boolean) => {
       const nouveauScore = score + (correct ? 1 : 0);
       setScore(nouveauScore);
-      scoreRef.current = nouveauScore;
       if (index + 1 >= questions.length) {
-        terminer(nouveauScore);
+        void terminer(nouveauScore);
       } else {
         setIndex(index + 1);
         setChrono(SECONDES_PAR_QUESTION);
@@ -146,7 +175,6 @@ export default function BattlePage() {
     [score, index, questions.length, terminer]
   );
 
-  // Chronomètre par question : à zéro, la question est comptée fausse
   useEffect(() => {
     if (phase !== "jeu") return;
     if (chrono <= 0) {
@@ -156,8 +184,6 @@ export default function BattlePage() {
     const t = setTimeout(() => setChrono((c) => c - 1), 1000);
     return () => clearTimeout(t);
   }, [phase, chrono, repondre]);
-
-  // ── Rendus ────────────────────────────────────────────────────────────────
 
   if (phase === "jeu" && questions[index]) {
     const q = questions[index];
@@ -175,9 +201,9 @@ export default function BattlePage() {
             {chrono}s
           </span>
         </div>
-        {session?.ghost && (
+        {ghost && (
           <p className="mt-1 text-xs text-espace-muted">
-            Adversaire : {session.ghost.nom} — {session.ghost.score}/{questions.length}
+            Adversaire : {ghost.nom} — {ghost.score}/{questions.length}
           </p>
         )}
         <div className="mt-3 h-1.5 w-full rounded-full bg-espace-border">
@@ -204,26 +230,13 @@ export default function BattlePage() {
     );
   }
 
-  if (phase === "syncro") {
-    return (
-      <main className="mx-auto max-w-xl px-6 py-10 text-center">
-        <p className="text-lg font-semibold text-espace-ink">Tu as terminé !</p>
-        <p className="mt-2 text-espace-muted">
-          En attente que ton adversaire finisse sa série…
-        </p>
-      </main>
-    );
-  }
-
   if (phase === "resultat" && classement) {
     const jaiGagne = classement.findIndex((c) => c.moi) === 0;
     return (
       <main className="mx-auto max-w-xl px-6 py-10">
-        <BackButton href={`/college/quetes/metiers/${params.slug}`} />
+        <BackButton href={retourHref} />
         <p className="text-xs uppercase tracking-wide text-espace-muted">Résultat de la Battle</p>
-        <h1 className="mt-1 text-2xl font-bold text-espace-ink">
-          {jaiGagne ? "Victoire !" : "Bien joué !"}
-        </h1>
+        <h1 className="mt-1 text-2xl font-bold text-espace-ink">{jaiGagne ? "Victoire !" : "Bien joué !"}</h1>
         <p className="mt-1 font-medium text-espace-primary">+{xpGagne} XP</p>
 
         <div className="mt-6 flex flex-col gap-2">
@@ -244,84 +257,9 @@ export default function BattlePage() {
             </div>
           ))}
         </div>
-
-        <button
-          onClick={() => {
-            setPhase("choix");
-            setSession(null);
-            setClassement(null);
-          }}
-          className="mt-8 rounded-lg bg-espace-primary px-5 py-3 font-medium text-white transition hover:bg-espace-primaryDark"
-        >
-          Rejouer
-        </button>
       </main>
     );
   }
 
-  return (
-    <main className="mx-auto max-w-xl px-6 py-10">
-      <BackButton href={`/college/quetes/metiers/${params.slug}`} />
-      <p className="text-xs uppercase tracking-wide text-espace-muted">Mode Battle</p>
-      <h1 className="mt-1 text-2xl font-bold text-espace-ink">Choisis ton format</h1>
-
-      {phase === "choix" && (
-        <div className="mt-6 flex flex-col gap-3">
-          <button
-            onClick={() => rejoindre("DUEL")}
-            className="rounded-lg border border-espace-border bg-white p-4 text-left transition hover:border-espace-primary"
-          >
-            <p className="font-semibold text-espace-ink">Duel 1 vs 1 — temps réel</p>
-            <p className="mt-1 text-sm text-espace-muted">
-              Mêmes questions que ton adversaire, score et vitesse départagent.
-            </p>
-          </button>
-          <button
-            onClick={() => rejoindre("BATTLE_ROYALE")}
-            className="rounded-lg border border-espace-border bg-white p-4 text-left transition hover:border-espace-primary"
-          >
-            <p className="font-semibold text-espace-ink">Battle Royale — 5 joueurs</p>
-            <p className="mt-1 text-sm text-espace-muted">
-              Plusieurs joueurs, un seul vainqueur au classement final.
-            </p>
-          </button>
-          <button
-            onClick={jouerFantome}
-            className="rounded-lg border border-espace-border bg-white p-4 text-left transition hover:border-espace-primary"
-          >
-            <p className="font-semibold text-espace-ink">Contre un fantôme — asynchrone</p>
-            <p className="mt-1 text-sm text-espace-muted">
-              Joue immédiatement contre le meilleur score enregistré ; le vainqueur
-              est annoncé à la fin.
-            </p>
-          </button>
-        </div>
-      )}
-
-      {phase === "attente" && session && (
-        <>
-          <div className="mt-8 rounded-xl border border-espace-border bg-espace-surface p-5 text-center">
-            <p className="font-medium text-espace-ink">En attente d'adversaires…</p>
-            <p className="mt-1 text-sm text-espace-muted">
-              {session.participants?.length ?? 1} joueur(s) présent(s) —{" "}
-              {type === "DUEL" ? "2 requis" : "5 requis"}
-            </p>
-            <p className="mt-2 text-xs text-espace-muted">
-              La partie démarre automatiquement dès que la salle est pleine.
-            </p>
-            <button
-              onClick={jouerFantome}
-              className="mt-4 text-sm font-medium text-espace-primary hover:underline"
-            >
-              Personne ne vient ? Joue contre un fantôme
-            </button>
-          </div>
-
-          <InviterCommunaute
-            message={`Qui me rejoint en Battle (${type === "DUEL" ? "Duel 1 vs 1" : "Battle Royale"}) ? Va dans Quêtes, choisis le métier, mode Battle : /college/quetes/metiers/${params.slug}/battle`}
-          />
-        </>
-      )}
-    </main>
-  );
+  return null;
 }

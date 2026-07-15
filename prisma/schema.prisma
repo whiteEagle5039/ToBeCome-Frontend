@@ -725,11 +725,12 @@ enum BattleStatus {
 
 model BattleSession {
   id       String       @id @default(cuid())
+  code     String?      @unique // code d'invitation court, partageable par lien
   metierId String
   metier   Metier       @relation(fields: [metierId], references: [id], onDelete: Cascade)
   type     BattleType
   status   BattleStatus @default(EN_ATTENTE)
-  contenu  Json // banque de questions utilisée pour la session
+  contenu  Json? // banque de questions tirée au lancement par l'hôte
 
   participants BattleParticipant[]
 
@@ -744,8 +745,15 @@ model BattleParticipant {
   id        String        @id @default(cuid())
   sessionId String
   session   BattleSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
-  eleveId   String
-  eleve     EleveProfile  @relation(fields: [eleveId], references: [id], onDelete: Cascade)
+  eleveId   String?
+  eleve     EleveProfile? @relation(fields: [eleveId], references: [id], onDelete: Cascade)
+
+  guestNom      String? // pseudo, participant invité sans compte
+  guestToken    String? @unique // secret de siège (élève ou invité), authentifie le socket temps réel
+  hote          Boolean @default(false)
+  pret          Boolean @default(false)
+  questionIndex Int     @default(0) // progression live, diffusée aux autres participants
+  createdAt     DateTime @default(now()) // ordre d'arrivée, utilisé pour réattribuer l'hôte
 
   score   Int     @default(0)
   tempsMs Int?
