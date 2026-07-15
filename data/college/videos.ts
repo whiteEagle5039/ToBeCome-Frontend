@@ -15,6 +15,7 @@ export type CollegeVideo = {
   poster?: string;       // 👉 mets ton image de couverture ici
   metierSlug: string;    // doit exister dans metiers.ts
   titre: string;
+  domaine?: string;
   extraitTemoignage?: string;
 };
 
