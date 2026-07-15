@@ -300,23 +300,11 @@ export default function CommunicationPage() {
                           </div>
                         </td>
                         <td className="px-4 py-3">
-                          <div className="flex items-center gap-2">
-                            {isSelected ? (
-                              <Badge label="Sélectionné" tone="success" />
-                            ) : (
-                              <Badge label="Cliquer pour sélectionner" tone="neutral" />
-                            )}
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                setSelectedParentId(parent.id)
-                              }}
-                              className="rounded-full border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50"
-                            >
-                              Choisir
-                            </button>
-                          </div>
+                          {isSelected ? (
+                            <Badge label="Sélectionné" tone="success" />
+                          ) : (
+                            <Badge label="Cliquer pour sélectionner" tone="neutral" />
+                          )}
                         </td>
                       </tr>
                     )
