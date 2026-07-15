@@ -7,7 +7,7 @@ import { EmptyState } from "@/components/etablissement/EmptyState";
 import { Skeleton } from "@/components/etablissement/Skeleton";
 import { Modal } from "@/components/etablissement/Modal";
 import type { Classe } from "@/types/etablissement"
-import { createClasse, deleteClasse, fetchClasses, updateClasse } from "@/lib/api/etablissement"
+import { createClasse, deleteClasse, fetchClasses } from "@/lib/api/etablissement"
 
 export default function ClassesPage() {
   const [classes, setClasses] = useState<Classe[] | null>(null);
