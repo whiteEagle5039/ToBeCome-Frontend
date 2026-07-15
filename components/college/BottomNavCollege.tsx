@@ -15,11 +15,10 @@ const items = [
 
 export default function BottomNavCollege() {
   const pathname = usePathname();
-  const isAuthPage = pathname?.startsWith("/college/connexion");
-  const isPublicBattlePage = pathname?.startsWith("/college/battle/");
-  const isMetierBattlePage = pathname?.includes("/college/quetes/metiers/") && pathname?.endsWith("/battle");
 
-  if (isAuthPage || isPublicBattlePage || isMetierBattlePage) {
+  // Le layout ne monte déjà ce composant que pour un élève connecté (voir
+  // app/college/layout.tsx) — il ne reste que ce cas ponctuel à exclure.
+  if (pathname?.startsWith("/college/connexion")) {
     return null;
   }
 
