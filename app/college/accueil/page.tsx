@@ -1,8 +1,6 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import MissionStatusCard from "@/components/college/MissionStatusCard";
 import DiscoveryCarousel from "@/components/college/DiscoveryCarousel";
-import CommunautesFlottant from "@/components/college/CommunautesFlottant";
 import { metiers } from "@/data/college/metiers";
 import MetierCard from "@/components/college/MetierCard";
 import { prisma } from "@/lib/prisma";
@@ -46,21 +44,14 @@ export default async function AccueilPage() {
   return (
     <div className="px-4 pt-6 space-y-6">
       {/* Header personnalisé */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div
-            className="w-11 h-11 rounded-full flex items-center justify-center text-lg font-bold"
-            style={{ background: "var(--college-yellow-100)", color: "var(--college-teal-700)" }}
-          >
-            {eleve.prenom.charAt(0).toUpperCase()}
-          </div>
-          <div className="college-card px-3 py-1.5 text-sm">Bonjour {eleve.prenom} !</div>
+      <div className="flex items-center gap-3">
+        <div
+          className="w-11 h-11 rounded-full flex items-center justify-center text-lg font-bold"
+          style={{ background: "var(--college-yellow-100)", color: "var(--college-teal-700)" }}
+        >
+          {eleve.prenom.charAt(0).toUpperCase()}
         </div>
-        <div className="flex items-center gap-3 text-sm font-semibold">
-          <Link href="/college/profil/parametres" aria-label="Paramètres" style={{ color: "var(--college-ink-600)" }}>
-            Paramètres
-          </Link>
-        </div>
+        <div className="college-card px-3 py-1.5 text-sm">Bonjour {eleve.prenom} !</div>
       </div>
 
       {/* Mission Status */}
@@ -113,9 +104,6 @@ export default async function AccueilPage() {
           ))}
         </div>
       </div>
-
-      {/* Accès flottant aux communautés par matière */}
-      <CommunautesFlottant />
     </div>
   );
 }

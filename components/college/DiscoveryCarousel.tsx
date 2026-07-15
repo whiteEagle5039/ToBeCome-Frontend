@@ -1,24 +1,25 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { getTodayLeSaviezVous, getTodayMetierDuJour } from "@/data/college/discovery";
+import { getTodayLeSaviezVous, getTodayPersonnaliteDuJour } from "@/data/college/discovery";
+import { matieresList } from "@/data/college/metiers";
 
 /**
  * Carrousel horizontal AUTOMATIQUE : il avance tout seul même sans
  * interaction au doigt, et boucle en continu entre les 2 cartes du jour
- * (Le saviez-vous ? / Métier du jour), renouvelées toutes les 24h
+ * (Le saviez-vous ? / Personnalité du jour), renouvelées toutes les 24h
  * (voir data/college/discovery.ts pour la logique de rotation).
  */
 export default function DiscoveryCarousel() {
   const leSaviezVous = getTodayLeSaviezVous();
-  const metierDuJour = getTodayMetierDuJour();
+  const personnaliteDuJour = getTodayPersonnaliteDuJour();
   const [index, setIndex] = useState(0);
   const scrollerRef = useRef<HTMLDivElement>(null);
 
   const slides = [
     leSaviezVous && { type: "saviez-vous" as const, data: leSaviezVous },
-    metierDuJour && { type: "metier-jour" as const, data: metierDuJour },
-  ].filter(Boolean) as { type: "saviez-vous" | "metier-jour"; data: any }[];
+    personnaliteDuJour && { type: "personnalite-jour" as const, data: personnaliteDuJour },
+  ].filter(Boolean) as { type: "saviez-vous" | "personnalite-jour"; data: any }[];
 
   // Auto-scroll : avance toutes les 4 secondes, boucle indéfiniment
   useEffect(() => {
@@ -59,11 +60,52 @@ export default function DiscoveryCarousel() {
               </>
             ) : (
               <>
-                <p className="text-xs font-bold" style={{ color: "var(--college-yellow-600)" }}>
-                  🏆 Métier du jour
-                </p>
-                <p className="text-sm font-semibold mt-2">{slide.data.nom}</p>
-                <p className="text-xs mt-1" style={{ color: "var(--college-ink-600)" }}>
+                {/* Bandeau coloré : la photo vient chevaucher son bord bas */}
+                <div
+                  className="-mx-4 -mt-4 h-12 px-4 pt-2"
+                  style={{
+                    background: "var(--college-yellow-100)",
+                    borderTopLeftRadius: "var(--college-radius-md)",
+                    borderTopRightRadius: "var(--college-radius-md)",
+                  }}
+                >
+                  <p className="text-xs font-bold" style={{ color: "var(--college-yellow-600)" }}>
+                    🌟 Personnalité du jour
+                  </p>
+                </div>
+                <div className="flex gap-3 items-end -mt-8">
+                  <div
+                    className="h-16 w-16 shrink-0 rounded-full bg-cover bg-center overflow-hidden flex items-center justify-center border-4"
+                    style={{
+                      background: "var(--college-teal-100)",
+                      borderColor: "var(--college-surface)",
+                      backgroundImage: slide.data.photo ? `url(${slide.data.photo})` : undefined,
+                      boxShadow: "var(--college-shadow-card)",
+                    }}
+                  >
+                    {!slide.data.photo && (
+                      <span className="text-base font-bold" style={{ color: "var(--college-teal-700)" }}>
+                        {slide.data.prenom.charAt(0)}
+                        {slide.data.nom.charAt(0)}
+                      </span>
+                    )}
+                  </div>
+                  <div className="min-w-0 pb-1">
+                    <p className="text-sm font-semibold truncate">
+                      {slide.data.prenom} {slide.data.nom}
+                    </p>
+                    <p className="text-xs mt-0.5" style={{ color: "var(--college-teal-700)" }}>
+                      {slide.data.metier}
+                    </p>
+                  </div>
+                </div>
+                <span
+                  className="inline-block mt-2 px-2 py-0.5 rounded-full text-[10px] font-semibold"
+                  style={{ background: "var(--college-teal-100)", color: "var(--college-teal-700)" }}
+                >
+                  {matieresList.find((m) => m.slug === slide.data.matiere)?.nom ?? slide.data.matiere}
+                </span>
+                <p className="text-xs mt-2 line-clamp-3" style={{ color: "var(--college-ink-600)" }}>
                   {slide.data.descriptionCourte}
                 </p>
               </>

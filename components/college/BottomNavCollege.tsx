@@ -2,13 +2,15 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, Compass, Trophy, User } from "lucide-react";
+import { Home, Compass, Trophy, User, MessagesSquare, Settings } from "lucide-react";
 
 const items = [
   { href: "/college/accueil", label: "Accueil", icon: Home },
   { href: "/college/explorer", label: "Explorer", icon: Compass },
   { href: "/college/quetes", label: "Quêtes", icon: Trophy },
+  { href: "/college/communautes", label: "Communautés", icon: MessagesSquare },
   { href: "/college/profil", label: "Profil", icon: User },
+  { href: "/college/profil/parametres", label: "Paramètres", icon: Settings },
 ];
 
 export default function BottomNavCollege() {
@@ -40,8 +42,9 @@ export default function BottomNavCollege() {
           <Link
             key={href}
             href={href}
+            aria-label={label}
             className="
-              flex flex-col items-center gap-1 px-3 py-1 rounded-2xl transition-colors
+              flex flex-col items-center gap-1 px-1.5 py-1 rounded-2xl transition-colors
 
               md:flex-row md:justify-start md:gap-3 md:px-4 md:py-3
             "
@@ -51,7 +54,9 @@ export default function BottomNavCollege() {
             }}
           >
             <Icon size={22} strokeWidth={active ? 2.5 : 2} />
-            <span className="text-[11px] font-semibold md:text-sm">{label}</span>
+            <span className="hidden text-[11px] font-semibold sm:inline md:text-sm">
+              {label}
+            </span>
           </Link>
         );
       })}

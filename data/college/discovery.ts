@@ -4,10 +4,13 @@
  * Utilisé par : components/college/DiscoveryCarousel.tsx sur l'Accueil.
  *
  * Deux listes de contenus. Chaque jour (toutes les 24h), on affiche
- * UN "Le saviez-vous ?" et UN "Métier du jour", choisis automatiquement
- * dans ces listes — pas besoin de les changer à la main tous les jours,
- * ajoute juste du contenu ici et la rotation se fait toute seule.
+ * UN "Le saviez-vous ?" et UNE "Personnalité du jour", choisis
+ * automatiquement dans ces listes — pas besoin de les changer à la main
+ * tous les jours, ajoute juste du contenu ici et la rotation se fait
+ * toute seule.
  */
+
+import type { Matiere } from "@/data/college/metiers";
 
 export type LeSaviezVous = {
   id: string;
@@ -15,11 +18,13 @@ export type LeSaviezVous = {
   texte: string;
 };
 
-export type MetierDuJour = {
+export type PersonnaliteDuJour = {
   id: string;
-  metierSlug: string; // doit exister dans metiers.ts
+  prenom: string;
   nom: string;
-  image: string;      // 👉 mets ton image ici
+  photo: string;    // 👉 mets la photo ici
+  metier: string;   // métier exercé par la personnalité
+  matiere: Matiere; // matière scolaire associée (doit exister dans metiers.ts)
   descriptionCourte: string;
 };
 
@@ -43,22 +48,48 @@ export const leSaviezVousList: LeSaviezVous[] = [
   // 👉 Ajoute autant de faits que tu veux, ils tournent automatiquement.
 ];
 
-export const metierDuJourList: MetierDuJour[] = [
+export const personnaliteDuJourList: PersonnaliteDuJour[] = [
   {
-    id: "mdj-001",
-    metierSlug: "developpeur-web",
-    nom: "Développeur web",
-    image: "",
-    descriptionCourte: "Il construit les sites et applications que tu utilises chaque jour.",
+    id: "pdj-001",
+    prenom: "Thomas",
+    nom: "Pesquet",
+    photo: "",
+    metier: "Astronaute",
+    matiere: "physique-chimie",
+    descriptionCourte:
+      "Ingénieur devenu astronaute, il a piloté la Station spatiale internationale et réalisé plusieurs sorties dans l'espace.",
   },
   {
-    id: "mdj-002",
-    metierSlug: "medecin",
-    nom: "Médecin",
-    image: "",
-    descriptionCourte: "Il examine, soigne et accompagne ses patients au quotidien.",
+    id: "pdj-002",
+    prenom: "Cédric",
+    nom: "Villani",
+    photo: "",
+    metier: "Mathématicien",
+    matiere: "mathematiques",
+    descriptionCourte:
+      "Chercheur en mathématiques, lauréat de la médaille Fields pour ses travaux sur la physique statistique.",
   },
-  // 👉 Ajoute d'autres métiers du jour ici.
+  {
+    id: "pdj-003",
+    prenom: "Malala",
+    nom: "Yousafzai",
+    photo: "",
+    metier: "Militante pour l'éducation",
+    matiere: "anglais",
+    descriptionCourte:
+      "Militante pakistanaise pour le droit des filles à l'éducation, la plus jeune lauréate du prix Nobel de la paix.",
+  },
+  {
+    id: "pdj-004",
+    prenom: "Teddy",
+    nom: "Riner",
+    photo: "",
+    metier: "Judoka professionnel",
+    matiere: "eps",
+    descriptionCourte:
+      "Champion olympique et multiple champion du monde de judo, considéré comme l'un des plus grands judokas de l'histoire.",
+  },
+  // 👉 Ajoute d'autres personnalités du jour ici.
 ];
 
 /**
@@ -77,6 +108,6 @@ export function getTodayLeSaviezVous(): LeSaviezVous | null {
   return pickForToday(leSaviezVousList);
 }
 
-export function getTodayMetierDuJour(): MetierDuJour | null {
-  return pickForToday(metierDuJourList);
+export function getTodayPersonnaliteDuJour(): PersonnaliteDuJour | null {
+  return pickForToday(personnaliteDuJourList);
 }
