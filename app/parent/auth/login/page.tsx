@@ -10,7 +10,7 @@ import { useStore } from "@/lib/parent/store";
 export default function LoginPage() {
   const { login } = useStore();
   const router = useRouter();
-  const [email, setEmail] = useState("prosper.zinsou@example.com");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | undefined>();
   const [loading, setLoading] = useState(false);
@@ -66,12 +66,6 @@ export default function LoginPage() {
           Connecte-toi avec ton compte parent To Be.Come.
         </p>
       </form>
-      <p className="mt-8 text-center text-sm text-slate">
-        Pas encore de compte ?{" "}
-        <Link href="/parent/auth/inscription" className="focus-ring font-semibold text-teal-700 hover:underline">
-          Créer un compte parent
-        </Link>
-      </p>
     </AuthLayout>
   );
 }

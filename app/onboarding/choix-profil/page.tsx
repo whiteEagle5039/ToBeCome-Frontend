@@ -13,7 +13,7 @@ const PROFILES = [
     id: "parent",
     label: "Parent",
     description: "Suis le parcours d'orientation de ton enfant",
-    href: "/parent/auth/inscription",
+    href: "/parent/auth/login",
     icon: Users,
   },
   {
