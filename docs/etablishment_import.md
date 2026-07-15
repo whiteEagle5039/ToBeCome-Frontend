@@ -17,18 +17,38 @@ Payload attendu :
       "nom": "Dupont",
       "dateNaissance": "2009-05-12",
       "classeId": "id-de-la-classe",
-      "role": "ELEVE_COLLEGE"
+      "parents": [
+        {
+          "prenom": "Paul",
+          "nom": "Dupont",
+          "email": "paul.dupont@example.com",
+          "telephone": "+229 90 00 00 00",
+          "lienParente": "Père"
+        },
+        {
+          "prenom": "Marie",
+          "nom": "Dupont",
+          "email": "marie.dupont@example.com",
+          "telephone": "+229 91 00 00 00",
+          "lienParente": "Mère"
+        }
+      ]
     }
   ]
 }
 ```
 
 La route accepte aussi `rows` au lieu de `eleves`.
+Le champ `role` devient facultatif. Quand `classeId` est renseigné, le rôle de l'élève est déduit automatiquement à partir du niveau de la classe.
 
 Ce qui est créé pour chaque élève :
 - un `matricule`
 - un `user`
 - un `eleveProfile`
+- un ou plusieurs comptes parents si les informations sont fournies
+- une association automatique entre l'élève et chaque parent
+
+Si un parent existe déjà avec le même email, le compte n'est pas recréé. L'élève est simplement rattaché à ce parent, ce qui permet à un même parent d'avoir plusieurs enfants dans le même établissement.
 
 Réponse attendue :
 
@@ -39,7 +59,17 @@ Réponse attendue :
     {
       "success": true,
       "matricule": "ABC12345",
-      "userId": "..."
+      "userId": "...",
+      "role": "ELEVE_COLLEGE",
+      "parents": [
+        {
+          "email": "paul.dupont@example.com",
+          "userId": "...",
+          "parentId": "...",
+          "created": true,
+          "temporaryPassword": "Parent@a1b2c3d4"
+        }
+      ]
     }
   ]
 }
@@ -61,7 +91,15 @@ Payload attendu :
       "nom": "Durand",
       "dateNaissance": "2008-09-20",
       "classeId": "id-de-la-classe",
-      "role": "ELEVE_COLLEGE"
+      "parents": [
+        {
+          "prenom": "Aline",
+          "nom": "Durand",
+          "email": "aline.durand@example.com",
+          "telephone": "+229 92 00 00 00",
+          "lienParente": "Mère"
+        }
+      ]
     }
   ]
 }

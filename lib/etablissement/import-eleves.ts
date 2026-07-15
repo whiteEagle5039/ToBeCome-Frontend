@@ -3,6 +3,14 @@ import type { BackendEleveRole } from "@/lib/api/client"
 import type { ImportElevePayload } from "@/lib/api/etablissement"
 import type { Classe } from "@/types/etablissement"
 
+export interface ParsedParent {
+  prenom: string
+  nom: string
+  email: string
+  telephone: string
+  lienParente: string
+}
+
 export interface ParsedEleveRow {
   ligne: number
   prenom: string
@@ -11,6 +19,7 @@ export interface ParsedEleveRow {
   classeSaisie: string
   classeId: string | null
   role: BackendEleveRole
+  parents: ParsedParent[]
   erreurs: string[]
 }
 
@@ -35,6 +44,34 @@ const HEADER_MAP: Record<string, Field> = {
   role: "role",
   niveau: "role",
 }
+
+type ParentField = "prenom" | "nom" | "email" | "telephone" | "lien"
+
+const PARENT_FIELD_SUFFIXES: Record<string, ParentField> = {
+  prenom: "prenom",
+  firstname: "prenom",
+  nom: "nom",
+  lastname: "nom",
+  email: "email",
+  mail: "email",
+  telephone: "telephone",
+  tel: "telephone",
+  phone: "telephone",
+  lien: "lien",
+  lienparente: "lien",
+  lienparent: "lien",
+  relation: "lien",
+}
+
+interface ParentSlotDef {
+  prefixes: string[]
+  defaultLien: string
+}
+
+const PARENT_SLOTS: ParentSlotDef[] = [
+  { prefixes: ["parent1", "parenta", "pere"], defaultLien: "Père" },
+  { prefixes: ["parent2", "parentb", "mere"], defaultLien: "Mère" },
+]
 
 function normalizeHeader(header: string): string {
   return header
@@ -82,10 +119,54 @@ function resolveRole(roleSaisi: string, classe: Classe | undefined): BackendElev
   return "ELEVE_COLLEGE"
 }
 
+function matchParentColumn(normalizedHeader: string): { slot: number; field: ParentField } | null {
+  for (let slot = 0; slot < PARENT_SLOTS.length; slot++) {
+    for (const prefix of PARENT_SLOTS[slot].prefixes) {
+      if (!normalizedHeader.startsWith(prefix)) continue
+      const suffix = normalizedHeader.slice(prefix.length)
+      const field = PARENT_FIELD_SUFFIXES[suffix]
+      if (field) return { slot, field }
+    }
+  }
+  return null
+}
+
+function buildParents(
+  parentFields: Array<Partial<Record<ParentField, string>>>,
+  erreurs: string[],
+): ParsedParent[] {
+  const parents: ParsedParent[] = []
+  parentFields.forEach((fields, slot) => {
+    const hasAnyValue = Object.values(fields).some((v) => v && v.trim())
+    if (!hasAnyValue) return
+    const email = (fields.email ?? "").trim()
+    if (!email) {
+      erreurs.push(`Email du parent ${slot + 1} manquant`)
+      return
+    }
+    parents.push({
+      prenom: (fields.prenom ?? "").trim(),
+      nom: (fields.nom ?? "").trim(),
+      email,
+      telephone: (fields.telephone ?? "").trim(),
+      lienParente: (fields.lien ?? "").trim() || PARENT_SLOTS[slot].defaultLien,
+    })
+  })
+  return parents
+}
+
 function normalizeRow(row: Record<string, unknown>, ligne: number, classes: Classe[]): ParsedEleveRow {
   const fields: Partial<Record<Field, string>> = {}
+  const parentFields: Array<Partial<Record<ParentField, string>>> = PARENT_SLOTS.map(() => ({}))
+
   for (const [key, value] of Object.entries(row)) {
-    const field = HEADER_MAP[normalizeHeader(key)]
+    const normalized = normalizeHeader(key)
+    const parentMatch = matchParentColumn(normalized)
+    if (parentMatch) {
+      parentFields[parentMatch.slot][parentMatch.field] = cellToString(value)
+      continue
+    }
+    const field = HEADER_MAP[normalized]
     if (!field) continue
     fields[field] = cellToString(value)
   }
@@ -104,6 +185,8 @@ function normalizeRow(row: Record<string, unknown>, ligne: number, classes: Clas
   if (!classeSaisie) erreurs.push("Classe manquante")
   else if (!classe) erreurs.push(`Classe "${classeSaisie}" introuvable`)
 
+  const parents = buildParents(parentFields, erreurs)
+
   return {
     ligne,
     prenom,
@@ -112,6 +195,7 @@ function normalizeRow(row: Record<string, unknown>, ligne: number, classes: Clas
     classeSaisie,
     classeId: classe?.id ?? null,
     role,
+    parents,
     erreurs,
   }
 }
@@ -126,24 +210,67 @@ export async function parseElevesFile(file: File, classes: Classe[]): Promise<Pa
 }
 
 export function rowToPayload(row: ParsedEleveRow): ImportElevePayload {
-  return {
+  const payload: ImportElevePayload = {
     prenom: row.prenom,
     nom: row.nom,
     dateNaissance: row.dateNaissance,
     classeId: row.classeId as string,
     role: row.role,
   }
+  if (row.parents.length > 0) {
+    payload.parents = row.parents.map((p) => ({
+      prenom: p.prenom,
+      nom: p.nom,
+      email: p.email,
+      telephone: p.telephone,
+      lienParente: p.lienParente,
+    }))
+  }
+  return payload
 }
 
 export function downloadEleveTemplate(classes: Classe[]) {
   const exempleClasse = classes[0]?.nom ?? "6ème A"
   const sheetData = [
-    ["prenom", "nom", "dateNaissance", "classe", "role"],
-    ["Jean", "Dupont", "2009-05-12", exempleClasse, "ELEVE_COLLEGE"],
+    [
+      "prenom",
+      "nom",
+      "dateNaissance",
+      "classe",
+      "role",
+      "parent1Prenom",
+      "parent1Nom",
+      "parent1Email",
+      "parent1Telephone",
+      "parent1Lien",
+    ],
+    [
+      "Jean",
+      "Dupont",
+      "2009-05-12",
+      exempleClasse,
+      "ELEVE_COLLEGE",
+      "Paul",
+      "Dupont",
+      "paul.dupont@example.com",
+      "+229 90 00 00 00",
+      "Père",
+    ],
   ]
   const workbook = XLSX.utils.book_new()
   const sheet = XLSX.utils.aoa_to_sheet(sheetData)
-  sheet["!cols"] = [{ wch: 14 }, { wch: 14 }, { wch: 16 }, { wch: 18 }, { wch: 16 }]
+  sheet["!cols"] = [
+    { wch: 14 },
+    { wch: 14 },
+    { wch: 16 },
+    { wch: 18 },
+    { wch: 16 },
+    { wch: 14 },
+    { wch: 14 },
+    { wch: 24 },
+    { wch: 18 },
+    { wch: 12 },
+  ]
   XLSX.utils.book_append_sheet(workbook, sheet, "Élèves")
 
   if (classes.length) {

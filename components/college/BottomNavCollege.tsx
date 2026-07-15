@@ -14,6 +14,10 @@ const items = [
 export default function BottomNavCollege() {
   const pathname = usePathname();
 
+  if (pathname?.startsWith("/college/connexion")) {
+    return null;
+  }
+
   return (
     <nav
       className="

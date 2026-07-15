@@ -164,6 +164,16 @@ export function ImportElevesModal({ open, onClose, classes, onImported }: Import
             <span className="font-medium text-slate-700">classe</span> (nom de la classe). La colonne{" "}
             <span className="font-medium text-slate-700">role</span> est optionnelle (déduite du niveau de la classe
             si absente). Un matricule sera généré automatiquement pour chaque élève.
+            <br className="my-1" />
+            Pour rattacher un ou deux parents, ajoute des colonnes{" "}
+            <span className="font-medium text-slate-700">parent1Prenom</span>,{" "}
+            <span className="font-medium text-slate-700">parent1Nom</span>,{" "}
+            <span className="font-medium text-slate-700">parent1Email</span>,{" "}
+            <span className="font-medium text-slate-700">parent1Telephone</span>,{" "}
+            <span className="font-medium text-slate-700">parent1Lien</span> (et{" "}
+            <span className="font-medium text-slate-700">parent2…</span> pour un second parent). L&apos;email est
+            requis pour créer ou rattacher un compte parent ; si un parent existe déjà avec cet email, l&apos;élève
+            lui est simplement rattaché.
           </div>
         </div>
       )}
@@ -192,6 +202,7 @@ export function ImportElevesModal({ open, onClose, classes, onImported }: Import
                   <th className="px-3 py-2">Naissance</th>
                   <th className="px-3 py-2">Classe</th>
                   <th className="px-3 py-2">Rôle</th>
+                  <th className="px-3 py-2">Parent(s)</th>
                   <th className="px-3 py-2">Statut</th>
                 </tr>
               </thead>
@@ -224,6 +235,11 @@ export function ImportElevesModal({ open, onClose, classes, onImported }: Import
                         )}
                       </td>
                       <td className="px-3 py-2 text-slate-500">{r.role === "ELEVE_LYCEE" ? "Lycée" : "Collège"}</td>
+                      <td className="px-3 py-2 text-slate-500">
+                        {r.parents.length > 0
+                          ? r.parents.map((p) => `${p.prenom} ${p.nom} (${p.lienParente})`.trim()).join(", ")
+                          : "—"}
+                      </td>
                       <td className="px-3 py-2">
                         {ok ? (
                           <CheckCircle2 className="h-4 w-4 text-emerald-500" />
@@ -256,6 +272,8 @@ export function ImportElevesModal({ open, onClose, classes, onImported }: Import
                 <tr>
                   <th className="px-3 py-2">Élève</th>
                   <th className="px-3 py-2">Matricule</th>
+                  <th className="px-3 py-2">Rôle</th>
+                  <th className="px-3 py-2">Parent(s)</th>
                   <th className="px-3 py-2">Statut</th>
                 </tr>
               </thead>
@@ -269,6 +287,28 @@ export function ImportElevesModal({ open, onClose, classes, onImported }: Import
                       </td>
                       <td className="px-3 py-2 font-mono text-slate-600">
                         {res.success ? res.matricule : "—"}
+                      </td>
+                      <td className="px-3 py-2 text-slate-500">
+                        {res.success ? (res.role === "ELEVE_LYCEE" ? "Lycée" : "Collège") : "—"}
+                      </td>
+                      <td className="px-3 py-2 text-slate-500">
+                        {res.success && res.parents && res.parents.length > 0 ? (
+                          <div className="space-y-1">
+                            {res.parents.map((p, pi) => (
+                              <div key={pi}>
+                                <span>{p.email}</span>
+                                {p.created ? (
+                                  <span className="ml-1 text-emerald-600">(nouveau)</span>
+                                ) : (
+                                  <span className="ml-1 text-slate-400">(existant)</span>
+                                )}
+
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          "—"
+                        )}
                       </td>
                       <td className="px-3 py-2">
                         {res.success ? (
