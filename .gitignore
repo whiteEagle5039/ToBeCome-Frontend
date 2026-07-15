@@ -20,6 +20,4 @@ node_modules
  
 # Next.js local config/dev files
 next-env.d.ts
-next.config.mjs
-next.config.js
 
