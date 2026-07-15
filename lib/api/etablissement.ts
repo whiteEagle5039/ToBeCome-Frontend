@@ -153,9 +153,59 @@ export async function fetchEnvoiHistorique(): Promise<EnvoiAcces[]> {
   return data
 }
 
-export async function sendAccesParents(payload: { eleveIds?: string[]; classeId?: string; canal: string }) {
-  const { data } = await api.post<{ sent: number }>("/api/etablissement/communication/send", payload)
-  return data
+export interface ParentDirectoryChild {
+  id: string
+  prenom: string
+  nom: string
+  classeNom: string
+  etablissementNom: string
+}
+
+export interface ParentDirectoryItem {
+  id: string
+  prenom: string
+  nom: string
+  email: string
+  telephone: string
+  enfants: ParentDirectoryChild[]
+}
+
+export async function fetchParentsDirectory(): Promise<ParentDirectoryItem[]> {
+  const res = await fetch("/api/admin/parents", { cache: "no-store" })
+
+  if (!res.ok) {
+    throw new Error("Chargement des parents impossible")
+  }
+
+  return (await res.json()) as ParentDirectoryItem[]
+}
+
+export interface SendAccessParentResult {
+  parentId: string
+  email: string
+  success: boolean
+  error?: string
+}
+
+export interface SendAccessResponse {
+  sent: number
+  total: number
+  results: SendAccessParentResult[]
+}
+
+export async function sendAccesParents(payload: { parentId?: string }) {
+  const res = await fetch("/api/admin/parents/send-access", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  })
+
+  if (!res.ok) {
+    const data = (await res.json().catch(() => null)) as { error?: string; message?: string } | null
+    throw new Error(data?.error ?? data?.message ?? "Envoi des accès impossible")
+  }
+
+  return (await res.json()) as SendAccessResponse
 }
 
 export async function fetchAlertes(): Promise<Alerte[]> {
@@ -180,16 +230,39 @@ export async function shareRapportWhatsApp(rapportId: string, telephone: string)
   return data
 }
 
+export interface ImportEleveParentPayload {
+  prenom: string
+  nom: string
+  email: string
+  telephone: string
+  lienParente: string
+}
+
 export interface ImportElevePayload {
   prenom: string
   nom: string
   dateNaissance: string
   classeId: string
-  role: BackendEleveRole
+  role?: BackendEleveRole
+  parents?: ImportEleveParentPayload[]
+}
+
+export interface ImportEleveParentResult {
+  email: string
+  userId: string
+  parentId: string
+  created: boolean
+  temporaryPassword?: string
 }
 
 export type ImportEleveResult =
-  | { success: true; matricule: string; userId: string }
+  | {
+      success: true
+      matricule: string
+      userId: string
+      role: BackendEleveRole
+      parents?: ImportEleveParentResult[]
+    }
   | { success: false; name?: string; error: string }
 
 export interface ImportElevesResponse {
