@@ -17,7 +17,59 @@ type SignalPayload = {
 type Callbacks = {
   onRemoteStream: (socketId: string, stream: MediaStream) => void;
   onEtatPair: (socketId: string, etat: EtatVoixPair) => void;
+  /** Activité vocale détectée sur le flux d'un pair (façon indicateur "en train de parler" de Discord/Meet). */
+  onSpeaking: (socketId: string, parle: boolean) => void;
+  /** Activité vocale détectée sur notre propre micro. */
+  onLocalSpeaking: (parle: boolean) => void;
 };
+
+const SEUIL_VOLUME_PAROLE = 12;
+const DELAI_RETOUR_SILENCE_MS = 400;
+
+/** Analyse le volume d'un flux audio et signale les transitions parle/silence (avec un léger délai pour éviter le clignotement entre les mots). */
+function demarrerDetectionVoix(contexte: AudioContext, stream: MediaStream, onChange: (parle: boolean) => void): () => void {
+  if (stream.getAudioTracks().length === 0) return () => {};
+
+  const source = contexte.createMediaStreamSource(stream);
+  const analyseur = contexte.createAnalyser();
+  analyseur.fftSize = 512;
+  analyseur.smoothingTimeConstant = 0.6;
+  source.connect(analyseur);
+
+  const donnees = new Uint8Array(analyseur.frequencyBinCount);
+  let enTrainDeParler = false;
+  let dernierSonMs = 0;
+  let frame = 0;
+  let arrete = false;
+
+  const boucle = () => {
+    if (arrete) return;
+    analyseur.getByteFrequencyData(donnees);
+    let somme = 0;
+    for (let i = 0; i < donnees.length; i++) somme += donnees[i];
+    const moyenne = somme / donnees.length;
+    const maintenant = performance.now();
+
+    if (moyenne > SEUIL_VOLUME_PAROLE) {
+      dernierSonMs = maintenant;
+      if (!enTrainDeParler) {
+        enTrainDeParler = true;
+        onChange(true);
+      }
+    } else if (enTrainDeParler && maintenant - dernierSonMs > DELAI_RETOUR_SILENCE_MS) {
+      enTrainDeParler = false;
+      onChange(false);
+    }
+    frame = requestAnimationFrame(boucle);
+  };
+  frame = requestAnimationFrame(boucle);
+
+  return () => {
+    arrete = true;
+    cancelAnimationFrame(frame);
+    source.disconnect();
+  };
+}
 
 /**
  * Maillage WebRTC audio (voix en direct) entre les participants d'un salon
@@ -31,6 +83,9 @@ export class BattleVoiceMesh {
   private localStream: MediaStream | null = null;
   private pairs = new Map<string, RTCPeerConnection>();
   private timeouts = new Map<string, ReturnType<typeof setTimeout>>();
+  private detectionsVoix = new Map<string, () => void>();
+  private arreterDetectionLocale: (() => void) | null = null;
+  private contexteAudio: AudioContext | null = null;
   private micActif = false;
 
   constructor(
@@ -42,11 +97,26 @@ export class BattleVoiceMesh {
     return this.micActif;
   }
 
+  /** Contexte audio partagé pour l'analyse de volume (voix locale + de chaque pair) — un seul par salon. */
+  private obtenirContexteAudio(): AudioContext | null {
+    if (this.contexteAudio) return this.contexteAudio;
+    const AudioContextCtor =
+      window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+    if (!AudioContextCtor) return null;
+    this.contexteAudio = new AudioContextCtor();
+    return this.contexteAudio;
+  }
+
   async activerMicrophone(): Promise<MediaStream> {
     if (this.localStream) return this.localStream;
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
     this.localStream = stream;
     this.micActif = true;
+    const contexte = this.obtenirContexteAudio();
+    if (contexte) {
+      void contexte.resume();
+      this.arreterDetectionLocale = demarrerDetectionVoix(contexte, stream, (parle) => this.callbacks.onLocalSpeaking(parle));
+    }
     for (const pc of this.pairs.values()) {
       stream.getAudioTracks().forEach((track) => pc.addTrack(track, stream));
     }
@@ -95,13 +165,19 @@ export class BattleVoiceMesh {
       clearTimeout(timeout);
       this.timeouts.delete(socketId);
     }
+    this.detectionsVoix.get(socketId)?.();
+    this.detectionsVoix.delete(socketId);
   }
 
   fermerTout() {
     for (const socketId of Array.from(this.pairs.keys())) this.retirerPair(socketId);
+    this.arreterDetectionLocale?.();
+    this.arreterDetectionLocale = null;
     this.localStream?.getTracks().forEach((t) => t.stop());
     this.localStream = null;
     this.micActif = false;
+    void this.contexteAudio?.close().catch(() => {});
+    this.contexteAudio = null;
   }
 
   private creerConnexion(socketId: string): RTCPeerConnection {
@@ -125,6 +201,15 @@ export class BattleVoiceMesh {
       }
       this.callbacks.onEtatPair(socketId, "connecte");
       this.callbacks.onRemoteStream(socketId, event.streams[0]);
+      const contexte = this.obtenirContexteAudio();
+      if (contexte) {
+        void contexte.resume();
+        this.detectionsVoix.get(socketId)?.();
+        this.detectionsVoix.set(
+          socketId,
+          demarrerDetectionVoix(contexte, event.streams[0], (parle) => this.callbacks.onSpeaking(socketId, parle))
+        );
+      }
     };
 
     pc.onconnectionstatechange = () => {

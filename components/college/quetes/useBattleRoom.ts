@@ -56,6 +56,7 @@ export function useBattleRoom({ session, participantId, guestToken, nomMoi, ques
   const [micActif, setMicActif] = useState(false);
   const [micsCoupes, setMicsCoupes] = useState<Record<string, boolean>>({});
   const [etatsVoix, setEtatsVoix] = useState<Record<string, EtatVoixPair>>({});
+  const [enTrainDeParler, setEnTrainDeParler] = useState<Record<string, boolean>>({});
   const [erreur, setErreur] = useState<string | null>(null);
 
   const [questions, setQuestions] = useState<Question[]>(questionsInitiales ?? []);
@@ -92,6 +93,14 @@ export function useBattleRoom({ session, participantId, guestToken, nomMoi, ques
       onEtatPair: (socketId, etat) => {
         setEtatsVoix((prev) => ({ ...prev, [socketId]: etat }));
       },
+      onSpeaking: (socketId, parle) => {
+        const pid = peerSocketsRef.current.get(socketId);
+        if (!pid) return;
+        setEnTrainDeParler((prev) => (prev[pid] === parle ? prev : { ...prev, [pid]: parle }));
+      },
+      onLocalSpeaking: (parle) => {
+        setEnTrainDeParler((prev) => (prev[participantId] === parle ? prev : { ...prev, [participantId]: parle }));
+      },
     });
     meshRef.current = mesh;
 
@@ -123,6 +132,12 @@ export function useBattleRoom({ session, participantId, guestToken, nomMoi, ques
           audioElsRef.current.delete(socketId);
         }
       }
+      setEnTrainDeParler((prev) => {
+        if (!(p.participantId in prev)) return prev;
+        const copie = { ...prev };
+        delete copie[p.participantId];
+        return copie;
+      });
     });
 
     socket.on("webrtc_signal", (payload: Parameters<BattleVoiceMesh["gererSignal"]>[0]) => {
@@ -183,14 +198,30 @@ export function useBattleRoom({ session, participantId, guestToken, nomMoi, ques
   }, []);
 
   const activerMicro = useCallback(async () => {
+    if (typeof navigator === "undefined" || !navigator.mediaDevices?.getUserMedia) {
+      setErreur(
+        window.isSecureContext === false
+          ? "Le micro nécessite une connexion sécurisée (HTTPS)."
+          : "Ce navigateur ne permet pas d'accéder au micro."
+      );
+      return;
+    }
     try {
       await meshRef.current?.activerMicrophone();
       setMicActif(true);
       for (const socketId of peerSocketsRef.current.keys()) {
         void meshRef.current?.initierAppel(socketId);
       }
-    } catch {
-      setErreur("Impossible d'accéder au micro (permission refusée ?).");
+    } catch (err) {
+      if (err instanceof DOMException && err.name === "NotAllowedError") {
+        setErreur(
+          "Accès au micro refusé. Autorise le micro pour ce site dans les paramètres de ton navigateur, puis réessaie."
+        );
+      } else if (err instanceof DOMException && err.name === "NotFoundError") {
+        setErreur("Aucun micro détecté sur cet appareil.");
+      } else {
+        setErreur("Impossible d'accéder au micro (permission refusée ?).");
+      }
     }
   }, []);
 
@@ -266,6 +297,7 @@ export function useBattleRoom({ session, participantId, guestToken, nomMoi, ques
     micActif,
     micsCoupes,
     etatsVoix,
+    enTrainDeParler,
     questions,
     index,
     score,

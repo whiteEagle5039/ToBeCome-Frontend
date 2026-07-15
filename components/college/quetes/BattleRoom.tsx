@@ -4,8 +4,8 @@ import { useState } from "react";
 import Link from "next/link";
 import { Mic, MicOff, Copy, Check } from "lucide-react";
 import { capaciteMax } from "@/lib/college/quetes/battle-shared";
-import { InviterCommunaute } from "@/components/college/quetes/InviterCommunaute";
-import { useBattleRoom, type Question, type SessionInfo } from "./useBattleRoom";
+import { ParticipantAvatar } from "./ParticipantAvatar";
+import { useBattleRoom, type BattleParticipantVue, type Question, type SessionInfo } from "./useBattleRoom";
 
 const SECONDES_PAR_QUESTION = 15;
 
@@ -37,6 +37,7 @@ export function BattleRoom({
     messages,
     micActif,
     micsCoupes,
+    enTrainDeParler,
     questions,
     index,
     score,
@@ -49,18 +50,35 @@ export function BattleRoom({
 
   const [messageTexte, setMessageTexte] = useState("");
   const [lienCopie, setLienCopie] = useState(false);
+  const [erreurCopie, setErreurCopie] = useState(false);
 
   const lienInvitation =
     session.code && typeof window !== "undefined" ? `${window.location.origin}/college/battle/${session.code}` : null;
 
   const copierLien = async () => {
     if (!lienInvitation) return;
+    setErreurCopie(false);
     try {
-      await navigator.clipboard.writeText(lienInvitation);
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(lienInvitation);
+      } else {
+        // API Clipboard indisponible (contexte non sécurisé, ancien navigateur) — repli sur execCommand.
+        const zoneTemporaire = document.createElement("textarea");
+        zoneTemporaire.value = lienInvitation;
+        zoneTemporaire.style.position = "fixed";
+        zoneTemporaire.style.opacity = "0";
+        document.body.appendChild(zoneTemporaire);
+        zoneTemporaire.focus();
+        zoneTemporaire.select();
+        const succes = document.execCommand("copy");
+        document.body.removeChild(zoneTemporaire);
+        if (!succes) throw new Error("copie impossible");
+      }
       setLienCopie(true);
       setTimeout(() => setLienCopie(false), 2000);
     } catch {
-      // presse-papiers indisponible — le code brut reste visible à l'écran
+      setErreurCopie(true);
+      setTimeout(() => setErreurCopie(false), 3000);
     }
   };
 
@@ -87,7 +105,7 @@ export function BattleRoom({
   if (phase === "lobby") {
     const capacite = capaciteMax(session.type);
     return (
-      <main className="mx-auto max-w-xl px-6 py-10">
+      <main className="mx-auto max-w-xl px-6 py-10 pb-32">
         <p className="text-xs uppercase tracking-wide text-espace-muted">
           {session.type === "DUEL" ? "Duel 1 vs 1" : "Battle Royale"}
         </p>
@@ -97,37 +115,9 @@ export function BattleRoom({
           <p className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{erreur}</p>
         )}
 
-        <div className="mt-5 flex flex-col gap-2">
-          {participants.map((p) => (
-            <div
-              key={p.id}
-              className={`flex items-center justify-between rounded-lg border px-4 py-3 ${
-                p.id === participantId ? "border-espace-primary bg-espace-surface" : "border-espace-border bg-white"
-              }`}
-            >
-              <span className="flex items-center gap-2 text-espace-ink">
-                {p.nom} {p.id === participantId && "(toi)"}
-                {p.hote && (
-                  <span className="rounded-full bg-espace-primary/10 px-2 py-0.5 text-xs font-medium text-espace-primary">
-                    Hôte
-                  </span>
-                )}
-                {p.estInvite && (
-                  <span className="rounded-full bg-espace-border px-2 py-0.5 text-xs text-espace-muted">Invité</span>
-                )}
-                {micsCoupes[p.id] === false && <Mic className="h-3.5 w-3.5 text-espace-primary" />}
-              </span>
-              <span
-                className={`text-xs font-medium ${p.pret ? "text-green-600" : "text-espace-muted"}`}
-              >
-                {p.pret ? "Prêt" : "En attente"}
-              </span>
-            </div>
-          ))}
-          <p className="text-center text-xs text-espace-muted">
-            {participants.length} / {capacite} joueur(s)
-          </p>
-        </div>
+        <p className="mt-5 text-center text-xs text-espace-muted">
+          {participants.length} / {capacite} joueur(s)
+        </p>
 
         <div className="mt-5 rounded-xl border border-espace-border bg-white p-4">
           <p className="text-sm font-semibold text-espace-ink">Inviter d'autres joueurs</p>
@@ -146,6 +136,11 @@ export function BattleRoom({
               {lienCopie ? "Copié" : "Copier"}
             </button>
           </div>
+          {erreurCopie && (
+            <p className="mt-2 text-xs text-red-600">
+              Impossible de copier automatiquement — sélectionne le lien ci-dessus et copie-le manuellement.
+            </p>
+          )}
         </div>
 
         <div className="mt-5 flex gap-2">
@@ -188,11 +183,13 @@ export function BattleRoom({
           onEnvoyer={envoyer}
         />
 
-        {moi && !moi.estInvite && lienInvitation && (
-          <InviterCommunaute
-            message={`Rejoins ma Battle (${session.type === "DUEL" ? "Duel 1 vs 1" : "Battle Royale"}) : ${lienInvitation}`}
-          />
-        )}
+        <ParticipantsBar
+          participants={participants}
+          participantId={participantId}
+          micActif={micActif}
+          micsCoupes={micsCoupes}
+          enTrainDeParler={enTrainDeParler}
+        />
       </main>
     );
   }
@@ -200,8 +197,17 @@ export function BattleRoom({
   // ── Jeu : question, timer, score + progression live des adversaires ───────
   if (phase === "jeu" && questions[index]) {
     const q = questions[index];
+    const progressionParParticipant =
+      questions.length > 0
+        ? Object.fromEntries(
+            participants.map((p) => [
+              p.id,
+              Math.min(1, (p.id === participantId ? index : progression[p.id] ?? 0) / questions.length),
+            ])
+          )
+        : {};
     return (
-      <main className="mx-auto max-w-xl px-6 py-10">
+      <main className="mx-auto max-w-xl px-6 py-10 pb-32">
         <div className="flex items-center justify-between">
           <p className="text-xs uppercase tracking-wide text-espace-muted">
             Battle — question {index + 1} / {questions.length}
@@ -222,30 +228,6 @@ export function BattleRoom({
           />
         </div>
 
-        {participants.length > 1 && (
-          <div className="mt-4 flex flex-wrap gap-2">
-            {participants
-              .filter((p) => p.id !== participantId)
-              .map((p) => {
-                const idx = progression[p.id] ?? 0;
-                return (
-                  <div key={p.id} className="flex-1 min-w-[8rem] rounded-lg border border-espace-border bg-white px-3 py-2">
-                    <p className="truncate text-xs font-medium text-espace-ink">{p.nom}</p>
-                    <div className="mt-1 h-1 w-full rounded-full bg-espace-border">
-                      <div
-                        className="h-full rounded-full bg-espace-primary transition-all"
-                        style={{ width: `${(idx / questions.length) * 100}%` }}
-                      />
-                    </div>
-                    <p className="mt-0.5 text-[10px] text-espace-muted">
-                      {idx} / {questions.length}
-                    </p>
-                  </div>
-                );
-              })}
-          </div>
-        )}
-
         <p className="mt-6 text-lg font-semibold text-espace-ink">{q.question}</p>
         <div className="mt-4 flex flex-col gap-2">
           {q.choix.map((choix, i) => (
@@ -259,6 +241,15 @@ export function BattleRoom({
           ))}
         </div>
         <p className="mt-4 text-sm text-espace-muted">Ton score : {score}</p>
+
+        <ParticipantsBar
+          participants={participants}
+          participantId={participantId}
+          micActif={micActif}
+          micsCoupes={micsCoupes}
+          enTrainDeParler={enTrainDeParler}
+          progressionParParticipant={progressionParParticipant}
+        />
       </main>
     );
   }
@@ -372,6 +363,49 @@ function ChatPanel({
         >
           Envoyer
         </button>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Barre des participants façon appel Meet/Discord, fixée en bas de l'écran :
+ * avatars ronds, micro et halo de voix, anneau de progression (façon story)
+ * pendant le jeu ou anneau prêt/en attente dans le salon.
+ */
+function ParticipantsBar({
+  participants,
+  participantId,
+  micActif,
+  micsCoupes,
+  enTrainDeParler,
+  progressionParParticipant,
+}: {
+  participants: BattleParticipantVue[];
+  participantId: string;
+  micActif: boolean;
+  micsCoupes: Record<string, boolean>;
+  enTrainDeParler: Record<string, boolean>;
+  /** Fourni pendant le jeu (0..1 par participant) ; absent dans le salon d'attente (anneau prêt/en attente). */
+  progressionParParticipant?: Record<string, number>;
+}) {
+  if (participants.length === 0) return null;
+  return (
+    <div className="fixed inset-x-0 bottom-0 z-20 border-t border-espace-border bg-white/95 backdrop-blur">
+      <div className="no-scrollbar mx-auto flex max-w-xl gap-4 overflow-x-auto px-4 pb-3 pt-3">
+        {participants.map((p) => (
+          <ParticipantAvatar
+            key={p.id}
+            nom={p.nom}
+            moi={p.id === participantId}
+            hote={p.hote}
+            invite={p.estInvite}
+            micCoupe={p.id === participantId ? !micActif : micsCoupes[p.id] !== false}
+            enParle={!!enTrainDeParler[p.id]}
+            progression={progressionParParticipant?.[p.id]}
+            pret={progressionParParticipant ? undefined : p.pret}
+          />
+        ))}
       </div>
     </div>
   );
