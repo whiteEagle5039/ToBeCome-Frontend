@@ -209,8 +209,16 @@ export function useBattleRoom({ session, participantId, guestToken, nomMoi, ques
     try {
       await meshRef.current?.activerMicrophone();
       setMicActif(true);
+      // Signale immédiatement aux autres que le micro est actif (sans ça,
+      // l'icône micro des pairs ne se met à jour qu'au premier mute/unmute).
+      socketRef.current?.emit("mic_state", { muted: false });
+      // N'appeler que les pairs pas encore connectés : une réactivation après
+      // coupure ne touche que `enabled` sur la piste existante, la connexion
+      // pair-à-pair déjà établie n'a pas besoin d'être renégociée.
       for (const socketId of peerSocketsRef.current.keys()) {
-        void meshRef.current?.initierAppel(socketId);
+        if (!meshRef.current?.estConnecteA(socketId)) {
+          void meshRef.current?.initierAppel(socketId);
+        }
       }
     } catch (err) {
       if (err instanceof DOMException && err.name === "NotAllowedError") {

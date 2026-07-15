@@ -108,7 +108,14 @@ export class BattleVoiceMesh {
   }
 
   async activerMicrophone(): Promise<MediaStream> {
-    if (this.localStream) return this.localStream;
+    if (this.localStream) {
+      // Réactivation après une coupure : la piste existe déjà mais son
+      // `enabled` a été mis à false par definirMicCoupe — le remettre à
+      // true, sinon le micro reste muet malgré micActif redevenu true.
+      this.localStream.getAudioTracks().forEach((t) => (t.enabled = true));
+      this.micActif = true;
+      return this.localStream;
+    }
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
     this.localStream = stream;
     this.micActif = true;
@@ -128,6 +135,11 @@ export class BattleVoiceMesh {
     this.localStream.getAudioTracks().forEach((t) => (t.enabled = !coupe));
     this.micActif = !coupe;
     this.socket.emit("mic_state", { muted: coupe });
+  }
+
+  /** Une connexion pair-à-pair existe déjà vers ce socket (pas besoin de la rappeler/renégocier). */
+  estConnecteA(socketId: string): boolean {
+    return this.pairs.has(socketId);
   }
 
   /** Appelé par le nouvel arrivant vers chaque pair déjà présent dans le salon. */
