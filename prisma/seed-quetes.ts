@@ -6,7 +6,7 @@
  * Exécution : npx tsx prisma/seed-quetes.ts
  */
 import { PrismaClient } from "@prisma/client";
-import { RIASEC_QUESTIONS } from "../lib/college/riasec/questions";
+import { RIASEC_QUESTIONS } from "../lib/eleve/riasec-questions";
 
 const prisma = new PrismaClient();
 
